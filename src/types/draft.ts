@@ -27,3 +27,29 @@ export type ImportedDraft = {
   myFantasyTeam: string;
   picks: DraftPick[];
 };
+
+export type PlayerRanking = {
+  playerName: string;
+  position: Position;
+  nflTeam: string;
+  totalDrafts: number;
+  timesDrafted: number;
+  draftRate: number;
+  averageOverallPick: number;
+  weightedScore: number;
+  rank: number;
+  myDraftCount: number;
+  myAverageOverallPick: number | null;
+};
+
+export type RankingSortField = "rank" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
+
+export type SortDirection = "ascending" | "descending";
+
+export type PendingDraft = {
+  id: string;
+  fileName: string;
+  picks: DraftPick[];
+  selectedTeam: string;
+  importError: string;
+};

@@ -8,21 +8,7 @@ import PlayerList from "@/components/PlayerList";
 import StatCard from "@/components/StatCard";
 import PositionBreakdown from "@/components/PositionBreakdown";
 import { convertDraftPicksToPlayers } from "@/utils/draftTransforms";
-
-type PositionOption = {
-  value: PositionFilter;
-  label: string;
-};
-
-const positionOptions: PositionOption[] = [
-  { value: "ALL", label: "Show all players" },
-  { value: "QB", label: "Quarterback" },
-  { value: "RB", label: "Running Back" },
-  { value: "WR", label: "Wide Receiver" },
-  { value: "TE", label: "Tight End" },
-  { value: "K", label: "Kicker" },
-  { value: "DST", label: "Defense / Special Teams" },
-];
+import { positionOptions } from "@/utils/positionOptions";
 
 type DraftAnalysisProps = {
   draftId: string;
@@ -116,7 +102,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
         Your fantasy team: <span className="font-bold text-white">{draft.myFantasyTeam}</span>
       </p>
       <p className="mt-1 text-slate-400">{draft.picks.length} total draft picks</p>
-      <div className="mt-8 grid grid-cols-3 gap-4">
+      <div className="mt-8 grid md:grid-cols-3 xl:grid-cols-4 gap-4">
         <FilterSelect id="positionFilter" label="Filter by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
         <FilterSelect id="fantasyTeamFilter" label="Filter by Fantasy Team" value={selectedFantasyTeamFilter} options={fantasyTeamOptions} onChange={handleSelectedFantasyTeam} />
         <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />

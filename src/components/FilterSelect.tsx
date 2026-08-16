@@ -19,7 +19,7 @@ export default function FilterSelect({ id, label, value, options, onChange }: Fi
       </label>
 
       <div className="relative w-full">
-        <select id={id} autoComplete="off" value={value} onChange={onChange} className="w-full cursor-pointer appearance-none rounded-lg bg-slate-900 py-3 pr-10 pl-4">
+        <select id={id} autoComplete="off" value={value} onChange={onChange} className="w-full cursor-pointer appearance-none rounded-lg border border-slate-500 bg-slate-900 py-3 pr-10 pl-4">
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

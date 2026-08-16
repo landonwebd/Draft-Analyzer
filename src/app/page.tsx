@@ -4,8 +4,10 @@ import Papa from "papaparse";
 import { useEffect, useRef, useState } from "react";
 import FilterSelect from "@/components/FilterSelect";
 import ImportedDraftCard from "@/components/ImportedDraftCard";
-import type { DraftPick, ImportedDraft, Position } from "@/types/draft";
+import type { DraftPick, ImportedDraft, Position, PendingDraft } from "@/types/draft";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
+import { MoveRight } from "lucide-react";
+import Link from "next/link";
 
 type CsvRow = Record<string, string>;
 
@@ -45,15 +47,38 @@ function convertCsvRowsToDraftPicks(rows: CsvRow[]): DraftPick[] {
   return importedPicks;
 }
 
+async function convertFileToPendingDraft(file: File): Promise<PendingDraft> {
+  const contents = await file.text();
+
+  const result = Papa.parse<CsvRow>(contents, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  const headers = result.meta.fields ?? [];
+  const missingHeaders = requiredHeaders.filter((header) => !headers.includes(header));
+
+  const importError = missingHeaders.length > 0 ? `Missing required columns: ${missingHeaders.join(", ")}` : "";
+
+  const picks = importError === "" ? convertCsvRowsToDraftPicks(result.data) : [];
+
+  return {
+    id: crypto.randomUUID(),
+    fileName: file.name,
+    picks,
+    selectedTeam: "",
+    importError,
+  };
+}
+
 export default function Home() {
-  const [fileName, setFileName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedImportTeam, setSelectedImportTeam] = useState("");
-  const [importError, setImportError] = useState("");
-  const [draftPicks, setDraftPicks] = useState<DraftPick[]>([]);
   const [importedDrafts, setImportedDrafts] = useState<ImportedDraft[]>([]);
+  const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rankingsAreAvailable = hasLoadedStorage && importedDrafts.length > 0;
+
   useEffect(() => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -85,97 +110,78 @@ export default function Home() {
     }
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(importedDrafts));
   }, [importedDrafts, hasLoadedStorage]);
-  const importFantasyTeams = [...new Set(draftPicks.map((pick) => pick.fantasyTeam).filter((team): team is string => Boolean(team)))];
-  const isDuplicateDraft = importedDrafts.some((draft) => draft.sourceFileName === fileName);
-  const importTeamOptions = [
-    { value: "", label: "Select your fantasy team" },
-    ...importFantasyTeams.map((fantasyTeam) => ({
-      value: fantasyTeam,
-      label: fantasyTeam,
-    })),
-  ];
-
-  const saveDraftIsDisabled = selectedImportTeam === "" || draftPicks.length === 0 || isDuplicateDraft;
-
-  function handleSelectedImportTeam(event: React.ChangeEvent<HTMLSelectElement>) {
-    setSelectedImportTeam(event.target.value);
-  }
-
-  function handleSaveDraft() {
-    if (saveDraftIsDisabled) {
-      return;
-    }
-
-    if (selectedImportTeam === "" || draftPicks.length === 0 || isDuplicateDraft) {
-      return;
-    }
-
-    const importedDraft: ImportedDraft = {
-      id: crypto.randomUUID(),
-      name: fileName.replace(/\.csv$/i, ""),
-      sourceFileName: fileName,
-      importedAt: new Date().toISOString(),
-      myFantasyTeam: selectedImportTeam,
-      picks: draftPicks,
-    };
-
-    setImportedDrafts((currentDrafts) => [...currentDrafts, importedDraft]);
-    setSelectedImportTeam("");
-  }
 
   function handleDeleteDraft(draftId: string) {
-    const draftToDelete = importedDrafts.find((draft) => draft.id === draftId);
     setImportedDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== draftId));
-    if (draftToDelete?.sourceFileName === fileName) {
-      clearCurrentImport();
+  }
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+
+    if (files.length === 0) {
+      setPendingDrafts([]);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const nextPendingDrafts = await Promise.all(files.map((file) => convertFileToPendingDraft(file)));
+      setPendingDrafts(nextPendingDrafts);
+    } finally {
+      setIsLoading(false);
     }
   }
 
-  function clearCurrentImport() {
-    setFileName("");
-    setDraftPicks([]);
-    setSelectedImportTeam("");
-    setImportError("");
+  function handlePendingTeamChange(pendingDraftId: string, event: React.ChangeEvent<HTMLSelectElement>) {
+    const selectedTeam = event.target.value;
+    setPendingDrafts((currentDrafts) => currentDrafts.map((pendingDraft) => (pendingDraft.id === pendingDraftId ? { ...pendingDraft, selectedTeam } : pendingDraft)));
+  }
+
+  function createFantasyTeamOptions(picks: DraftPick[]) {
+    const fantasyTeams = [...new Set(picks.map((pick) => pick.fantasyTeam).filter((team): team is string => Boolean(team)))];
+
+    return [
+      { value: "", label: "Select your fantasy team" },
+      ...fantasyTeams.map((fantasyTeam) => ({
+        value: fantasyTeam,
+        label: fantasyTeam,
+      })),
+    ];
+  }
+
+  function handleSavePendingDraft(pendingDraftId: string) {
+    const pendingDraft = pendingDrafts.find((draft) => draft.id === pendingDraftId);
+    if (!pendingDraft) {
+      return;
+    }
+    const isDuplicate = importedDrafts.some((draft) => draft.sourceFileName === pendingDraft.fileName);
+    if (pendingDraft.selectedTeam === "" || pendingDraft.picks.length === 0 || pendingDraft.importError !== "" || isDuplicate) {
+      return;
+    }
+    const importedDraft: ImportedDraft = {
+      id: crypto.randomUUID(),
+      name: pendingDraft.fileName.replace(/\.csv$/i, ""),
+      sourceFileName: pendingDraft.fileName,
+      importedAt: new Date().toISOString(),
+      myFantasyTeam: pendingDraft.selectedTeam,
+      picks: pendingDraft.picks,
+    };
+    setImportedDrafts((currentDrafts) => [...currentDrafts, importedDraft]);
+    setPendingDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== pendingDraftId));
+  }
+
+  function handleRemovePendingDraft(pendingDraftId: string) {
+    setPendingDrafts((currentDrafts) => currentDrafts.filter((pendingDraft) => pendingDraft.id !== pendingDraftId));
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   }
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      setFileName("");
-      setDraftPicks([]);
-      setSelectedImportTeam("");
-      return;
-    }
-
-    setIsLoading(true);
-    setImportError("");
-    setFileName(file.name);
-    setDraftPicks([]);
-    setSelectedImportTeam("");
-
-    try {
-      const contents = await file.text();
-      const result = Papa.parse<CsvRow>(contents, {
-        header: true,
-        skipEmptyLines: true,
-      });
-      const headers = result.meta.fields ?? [];
-      const missingHeaders = requiredHeaders.filter((header) => !headers.includes(header));
-      if (missingHeaders.length > 0) {
-        setImportError(`Missing required columns: ${missingHeaders.join(", ")}`);
-        setDraftPicks([]);
-        return;
-      }
-      const importedPicks = convertCsvRowsToDraftPicks(result.data);
-      setDraftPicks(importedPicks);
-    } finally {
-      setIsLoading(false);
-    }
+  function pendingDraftCannotBeSaved(pendingDraft: PendingDraft) {
+    const isDuplicate = importedDrafts.some((draft) => draft.sourceFileName === pendingDraft.fileName);
+    return pendingDraft.selectedTeam === "" || pendingDraft.picks.length === 0 || pendingDraft.importError !== "" || isDuplicate;
   }
 
   return (
@@ -187,21 +193,51 @@ export default function Home() {
         <label htmlFor="resultsUpload" className="block mt-6 max-w-2xl text-lg leading-8 text-slate-300">
           Import Your Draft Results
         </label>
-        <input ref={fileInputRef} id="resultsUpload" type="file" accept=".csv,text/csv" onChange={handleFileChange} className="mt-2 py-3 px-4 block text-slate-300 rounded-md bg-slate-800 border-slate-300" name="resultsUpload" />
-        {fileName && <p className="mt-3 text-sm text-slate-400">Selected file: {fileName}</p>}
-        <div className="mt-8 flex flex-wrap gap-4">
-          <FilterSelect id="importTeam" label="Select your fantasy team" value={selectedImportTeam} options={importTeamOptions} onChange={handleSelectedImportTeam} />
-
-          <button type="button" onClick={handleSaveDraft} aria-disabled={saveDraftIsDisabled} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${saveDraftIsDisabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
-            Save imported draft
-          </button>
-        </div>
+        <input ref={fileInputRef} id="resultsUpload" type="file" accept=".csv,text/csv" multiple onChange={handleFileChange} className="mt-2 py-3 px-4 block text-slate-300 rounded-md bg-slate-800 border-slate-300" name="resultsUpload" />
         {isLoading && (
           <div className="relative h-16">
             <span className="absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2 animate-spin rounded-full border-2 border-r-amber-500 border-b-amber-500 border-t-amber-500" />
           </div>
         )}
-        {importError && <p className="mt-3 rounded-lg bg-red-950 p-3 text-sm text-red-200">{importError}</p>}
+        {pendingDrafts.length > 0 && (
+          <section className="mt-6">
+            <h2 className="text-xl font-bold">Pending Imports ({pendingDrafts.length})</h2>
+
+            <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {pendingDrafts.map((pendingDraft) => (
+                <li key={pendingDraft.id} className="flex h-full flex-col rounded-xl border border-slate-700 bg-slate-800/60 p-5 shadow-sm">
+                  <p className="truncate text-lg font-bold" title={pendingDraft.fileName}>
+                    {pendingDraft.fileName}
+                  </p>
+                  {pendingDraft.importError ? <p className="mt-2 text-sm text-red-300">{pendingDraft.importError}</p> : <p className="mt-2 text-sm text-slate-400">{pendingDraft.picks.length} picks found</p>}
+                  <div className="mt-3">
+                    <div className="mt-auto pt-5">
+                      <FilterSelect id={`pendingTeam-${pendingDraft.id}`} label={`Select your team for ${pendingDraft.fileName}`} value={pendingDraft.selectedTeam} options={createFantasyTeamOptions(pendingDraft.picks)} onChange={(event) => handlePendingTeamChange(pendingDraft.id, event)} />
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        <button type="button" onClick={() => handleSavePendingDraft(pendingDraft.id)} aria-disabled={pendingDraftCannotBeSaved(pendingDraft)} className={`mt-3 rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${pendingDraftCannotBeSaved(pendingDraft) ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
+                          Save this draft
+                        </button>
+                        <button type="button" onClick={() => handleRemovePendingDraft(pendingDraft.id)} className="mt-3 cursor-pointer rounded-lg border border-slate-700 px-4 py-3 text-slate-300 hover:bg-slate-800">
+                          Remove from list
+                        </button>
+                      </div>
+                    </div>
+                    {importedDrafts.some((draft) => draft.sourceFileName === pendingDraft.fileName) && <p className="mt-2 text-sm text-amber-300">This draft has already been imported.</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {rankingsAreAvailable ? (
+          <Link href="/rankings" className="mt-6 inline-flex gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-500">
+            View Draft Rankings <MoveRight />
+          </Link>
+        ) : (
+          <span aria-disabled="true" title="Import and save a draft to view rankings" className="mt-6 inline-flex gap-2 cursor-not-allowed rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white opacity-40">
+            View Draft Rankings <MoveRight />
+          </span>
+        )}
         <section className="mt-10">
           <h2 className="text-2xl font-bold">Imported Drafts</h2>
 
