@@ -130,6 +130,9 @@ export default function Home() {
       setPendingDrafts(nextPendingDrafts);
     } finally {
       setIsLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   }
 
@@ -139,7 +142,11 @@ export default function Home() {
   }
 
   function createFantasyTeamOptions(picks: DraftPick[]) {
-    const fantasyTeams = [...new Set(picks.map((pick) => pick.fantasyTeam).filter((team): team is string => Boolean(team)))];
+    const fantasyTeams = [...new Set(picks.map((pick) => pick.fantasyTeam).filter((team): team is string => Boolean(team)))].sort((firstTeam, secondTeam) =>
+      firstTeam.localeCompare(secondTeam, undefined, {
+        sensitivity: "base",
+      }),
+    );
 
     return [
       { value: "", label: "Select your fantasy team" },

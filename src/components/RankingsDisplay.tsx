@@ -7,6 +7,8 @@ import SortableHeader from "@/components/SortableHeader";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { positionOptions } from "@/utils/positionOptions";
+import { createRankingsCsv } from "@/utils/createRankingsCsv";
+import { Download } from "lucide-react";
 
 export default function RankingsDisplay() {
   const [rankings, setRankings] = useState<PlayerRanking[]>([]);
@@ -93,13 +95,37 @@ export default function RankingsDisplay() {
     );
   }
 
+  function handleExportRankings() {
+    if (sortedRankings.length === 0) {
+      return;
+    }
+
+    const csvContent = createRankingsCsv(sortedRankings);
+
+    const csvBlob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const downloadUrl = window.URL.createObjectURL(csvBlob);
+
+    const downloadLink = document.createElement("a");
+    downloadLink.href = downloadUrl;
+    downloadLink.download = "draft-rankings.csv";
+    downloadLink.click();
+
+    window.URL.revokeObjectURL(downloadUrl);
+  }
+
   return (
     <div className="mt-8">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-[repeat(4,auto)] gap-4">
         <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
         <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
         <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
           Clear Filters
+        </button>
+        <button type="button" onClick={handleExportRankings} aria-label="Export rankings as CSV" title="Export rankings as CSV" aria-disabled={sortedRankings.length === 0} className="w-fit rounded-lg border border-slate-700 px-4 py-3 text-slate-300 cursor-pointer hover:bg-slate-800">
+          <Download />
         </button>
       </div>
       <div className="mt-6 overflow-x-auto">

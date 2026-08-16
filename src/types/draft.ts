@@ -40,6 +40,11 @@ export type PlayerRanking = {
   rank: number;
   myDraftCount: number;
   myAverageOverallPick: number | null;
+  myDraftRate: number;
+  passOpportunityCount: number;
+  timesPassed: number;
+  meaningfulPassCount: number;
+  personalPassPenalty: number;
 };
 
 export type RankingSortField = "rank" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
