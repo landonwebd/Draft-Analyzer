@@ -165,7 +165,7 @@ export default function RankingsDisplay() {
 
           <tbody className="divide-y divide-slate-800">
             {sortedRankings.map((player) => (
-              <tr key={player.playerName}>
+              <tr key={player.rank}>
                 <td className="text-left px-3 py-3 tabular-nums">{player.weightedScore.toFixed(2)}</td>
                 <td className="px-3 py-3">
                   <div className="flex min-w-0 items-baseline gap-2">

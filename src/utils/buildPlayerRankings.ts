@@ -48,7 +48,10 @@ function normalizePlayerName(playerName: string): string {
 
 function createPlayerKey(playerName: string, position: Position, nflTeam: string): string {
   if (position === "DST") {
-    return `dst:${nflTeam.toLowerCase()}`;
+    const normalizedTeam = nflTeam.trim().toUpperCase();
+    const teamKey = normalizedTeam === "JAC" ? "JAX" : normalizedTeam;
+
+    return `dst:${teamKey.toLowerCase()}`;
   }
 
   return normalizePlayerName(playerName);
