@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESPN Draft Export Bookmarklet</title>
+    <style>
+      body {
+        background: #020617;
+        color: #e2e8f0;
+        font-family: system-ui, sans-serif;
+        line-height: 1.6;
+        margin: 60px auto;
+        max-width: 720px;
+        padding: 0 24px;
+      }
+
+      .bookmarklet {
+        background: #059669;
+        border-radius: 10px;
+        color: white;
+        display: inline-block;
+        font-weight: 700;
+        padding: 14px 20px;
+        text-decoration: none;
+      }
+
+      code {
+        color: #7dd3fc;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ESPN Draft Export</h1>
+    <p>Drag the button below to your bookmarks bar. Then open a completed ESPN draft-results page and click the bookmark.</p>
+    <p><a id="bookmarklet" class="bookmarklet" href="#">🏈 Export ESPN Draft</a></p>
+    <p>The exporter detects league size from the fantasy-team names on the page and creates a stable filename based on the draft contents.</p>
+
+    <script>
+      function exportEspnDraft() {
+        var rows = Array.from(document.querySelectorAll(".fixedDataTableCellGroupLayout_cellGroup"));
+
+        var rawData = rows
+          .map(function (row) {
+            var cells = Array.from(row.querySelectorAll('[role="gridcell"]'));
+            var playerLink = row.querySelector(".playerinfo__playername a");
+
+            if (!playerLink) {
+              return null;
+            }
+
+            var overall = parseInt(cells[0] && cells[0].innerText.trim(), 10);
+
+            if (!overall) {
+              return null;
+            }
+
+            var nflTeam = row.querySelector(".playerinfo__playerteam");
+            var position = row.querySelector(".playerinfo__playerpos");
+
+            return {
+              overall: overall,
+              player: playerLink.textContent.trim(),
+              nflTeam: nflTeam ? nflTeam.textContent.trim() : "",
+              position: position ? position.textContent.trim() : "",
+              fantasyTeam: cells[2] ? cells[2].innerText.trim() : "",
+            };
+          })
+          .filter(Boolean)
+          .sort(function (firstPick, secondPick) {
+            return firstPick.overall - secondPick.overall;
+          });
+
+        if (!rawData.length) {
+          alert("No ESPN draft results found.");
+          return;
+        }
+
+        var hasSequentialPicks = rawData.every(function (pick, index) {
+          return pick.overall === index + 1;
+        });
+
+        if (!hasSequentialPicks) {
+          alert("The complete sequential draft results were not found. Try scrolling through the entire results table before exporting.");
+          return;
+        }
+
+        var fantasyTeams = Array.from(
+          new Set(
+            rawData
+              .map(function (pick) {
+                return pick.fantasyTeam;
+              })
+              .filter(Boolean),
+          ),
+        );
+
+        var teamCount = fantasyTeams.length;
+
+        if (teamCount < 2) {
+          alert("Unable to determine the number of fantasy teams.");
+          return;
+        }
+
+        var data = rawData.map(function (draftPick) {
+          var round = Math.ceil(draftPick.overall / teamCount);
+          var pickInRound = draftPick.overall - (round - 1) * teamCount;
+          var formattedPick = round + "." + String(pickInRound).padStart(2, "0");
+
+          return [draftPick.overall, formattedPick, draftPick.player, draftPick.nflTeam, draftPick.position, draftPick.fantasyTeam];
+        });
+
+        function escapeCsvValue(value) {
+          var stringValue = String(value || "");
+
+          return /["\r\n,]/.test(stringValue) ? '"' + stringValue.replace(/"/g, '""') + '"' : stringValue;
+        }
+
+        var csv = ["OVERALL,PICK,PLAYER,NFL,POS,TEAM"]
+          .concat(
+            data.map(function (draftPick) {
+              return draftPick.map(escapeCsvValue).join(",");
+            }),
+          )
+          .join("\n");
+
+        var hash = 2166136261;
+
+        for (var characterIndex = 0; characterIndex < csv.length; characterIndex += 1) {
+          hash ^= csv.charCodeAt(characterIndex);
+          hash = Math.imul(hash, 16777619);
+        }
+
+        var draftIdentifier = (hash >>> 0).toString(36);
+        var fileName = "espn-mock-draft-" + teamCount + "-teams-" + draftIdentifier + ".csv";
+        var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        var downloadUrl = URL.createObjectURL(blob);
+        var downloadLink = document.createElement("a");
+
+        downloadLink.href = downloadUrl;
+        downloadLink.download = fileName;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+
+        setTimeout(function () {
+          URL.revokeObjectURL(downloadUrl);
+        }, 1000);
+
+        alert("Exported " + data.length + " ESPN draft picks from " + teamCount + " teams to " + fileName + ".");
+      }
+
+      document.getElementById("bookmarklet").href = "javascript:(" + exportEspnDraft.toString() + ")()";
+    </script>
+  </body>
+</html>

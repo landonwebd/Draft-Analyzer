@@ -17,20 +17,53 @@ type PersonalPassStats = {
   meaningfulPassCount: number;
 };
 
+const playerNameAliases: Record<string, string> = {
+  "kenneth gainwell": "kenny gainwell",
+  "andres borregales": "andy borregales",
+  "oronde gadsden ii": "oronde gadsden",
+  "patrick mahomes ii": "patrick mahomes",
+  "trent sherfield sr": "trent sherfield",
+  "lew nichols iii": "lew nichols",
+  "matthew hibner": "matt hibner",
+  "mitchell tinsley": "mitch tinsley",
+  "chris godwin": "chris godwin jr",
+  "kyle pitts": "kyle pitts sr",
+  "james cook": "james cook iii",
+  "aaron jones": "aaron jones sr",
+  "travis etienne": "travis etienne jr",
+  "deebo samuel": "deebo samuel sr",
+  "chigoziem okonkwo": "chig okonkwo",
+};
+
 function normalizePlayerName(playerName: string): string {
-  return playerName.trim().toLowerCase();
+  const normalizedName = playerName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return playerNameAliases[normalizedName] ?? normalizedName;
 }
 
-function calculatePersonalPassStats(playerName: string, drafts: ImportedDraft[], playersByName: Map<string, PlayerAccumulator>, myDraftCount: number): PersonalPassStats {
+function createPlayerKey(playerName: string, position: Position, nflTeam: string): string {
+  if (position === "DST") {
+    return `dst:${nflTeam.toLowerCase()}`;
+  }
+
+  return normalizePlayerName(playerName);
+}
+
+function calculatePersonalPassStats(playerName: string, position: Position, nflTeam: string, drafts: ImportedDraft[], playersByName: Map<string, PlayerAccumulator>, myDraftCount: number): PersonalPassStats {
   let passOpportunityCount = 0;
   let timesPassed = 0;
   let totalPassSeverity = 0;
   let meaningfulPassCount = 0;
   let opportunityLeagueSizeTotal = 0;
-  const playerKey = normalizePlayerName(playerName);
+  const playerKey = createPlayerKey(playerName, position, nflTeam);
 
   for (const draft of drafts) {
-    const playerPick = draft.picks.find((pick) => normalizePlayerName(pick.playerName) === playerKey);
+    const playerPick = draft.picks.find((pick) => createPlayerKey(pick.playerName, pick.position, pick.nflTeam) === playerKey);
     if (!playerPick) {
       continue;
     }
@@ -47,7 +80,7 @@ function calculatePersonalPassStats(playerName: string, drafts: ImportedDraft[],
     if (!playerWasDraftedByMe) {
       timesPassed += 1;
 
-      const selectedPlayerData = playersByName.get(normalizePlayerName(userSelectedPick.playerName));
+      const selectedPlayerData = playersByName.get(createPlayerKey(userSelectedPick.playerName, userSelectedPick.position, userSelectedPick.nflTeam));
       const passedPlayerData = playersByName.get(playerKey);
 
       if (selectedPlayerData && passedPlayerData) {
@@ -82,7 +115,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
   const playersByName = new Map<string, PlayerAccumulator>();
   for (const draft of drafts) {
     for (const pick of draft.picks) {
-      const playerKey = normalizePlayerName(pick.playerName);
+      const playerKey = createPlayerKey(pick.playerName, pick.position, pick.nflTeam);
       const draftedByMe = pick.fantasyTeam === draft.myFantasyTeam;
       const existingPlayer = playersByName.get(playerKey);
 
@@ -116,8 +149,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
     const myAverageOverallPick = myDraftCount > 0 ? player.myTotalOverallPick / myDraftCount : null;
     const personalWeight = myDraftCount > 0 ? myDraftCount / (myDraftCount + 0.5) : 0;
     const preferredAverageOverallPick = myAverageOverallPick === null ? averageOverallPick : personalWeight * myAverageOverallPick + (1 - personalWeight) * averageOverallPick;
-    const { passOpportunityCount, timesPassed, meaningfulPassCount, personalPassPenalty } = calculatePersonalPassStats(player.playerName, drafts, playersByName, myDraftCount);
-
+    const { passOpportunityCount, timesPassed, meaningfulPassCount, personalPassPenalty } = calculatePersonalPassStats(player.playerName, player.position, player.nflTeam, drafts, playersByName, myDraftCount);
     let weightedPickTotal = preferredAverageOverallPick * timesDrafted;
 
     for (const draft of drafts) {

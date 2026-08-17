@@ -5,9 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import FilterSelect from "@/components/FilterSelect";
 import ImportedDraftCard from "@/components/ImportedDraftCard";
 import type { DraftPick, ImportedDraft, Position, PendingDraft } from "@/types/draft";
+import type { FantasyProsDraftResponse } from "@/types/fantasyPros";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
+import { buildFantasyProsPlayerLookup } from "@/utils/buildFantasyProsPlayerLookup";
+import { convertFantasyProsDraft } from "@/utils/convertFantasyProsDraft";
+import { getFantasyProsPlayers } from "@/utils/getFantasyProsPlayers";
+import { isFantasyProsDraftResponse } from "@/utils/isFantasyProsDraftResponse";
 
 type CsvRow = Record<string, string>;
 
@@ -18,8 +23,11 @@ function isPosition(value: string): value is Position {
 }
 
 function normalizePosition(value: string): Position | null {
-  if (value === "Def/ST") {
+  if (value === "Def/ST" || value === "D/ST") {
     return "DST";
+  }
+  if (value === "WRCB") {
+    return "WR";
   }
   if (isPosition(value)) {
     return value;
@@ -76,6 +84,7 @@ export default function Home() {
   const [importedDrafts, setImportedDrafts] = useState<ImportedDraft[]>([]);
   const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
+  const [fantasyProsUrl, setFantasyProsUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rankingsAreAvailable = hasLoadedStorage && importedDrafts.length > 0;
 
@@ -162,13 +171,14 @@ export default function Home() {
     if (!pendingDraft) {
       return;
     }
+    const isFantasyProsDraft = pendingDraft.fileName.startsWith("fantasypros-");
     const isDuplicate = importedDrafts.some((draft) => draft.sourceFileName === pendingDraft.fileName);
     if (pendingDraft.selectedTeam === "" || pendingDraft.picks.length === 0 || pendingDraft.importError !== "" || isDuplicate) {
       return;
     }
     const importedDraft: ImportedDraft = {
       id: crypto.randomUUID(),
-      name: pendingDraft.fileName.replace(/\.csv$/i, ""),
+      name: isFantasyProsDraft ? "FantasyPros Mock Draft" : pendingDraft.fileName.replace(/\.(csv|json)$/i, ""),
       sourceFileName: pendingDraft.fileName,
       importedAt: new Date().toISOString(),
       myFantasyTeam: pendingDraft.selectedTeam,
@@ -191,6 +201,70 @@ export default function Home() {
     return pendingDraft.selectedTeam === "" || pendingDraft.picks.length === 0 || pendingDraft.importError !== "" || isDuplicate;
   }
 
+  async function addFantasyProsPendingDraft(draftResponse: FantasyProsDraftResponse, sourceFileName: string) {
+    const playersResponse = await getFantasyProsPlayers();
+    const playerLookup = buildFantasyProsPlayerLookup(playersResponse.players);
+    const convertedPicks = convertFantasyProsDraft(draftResponse, playerLookup);
+
+    const userPick = draftResponse.picks.find((pick) => pick.isUserTeam);
+    const selectedTeam = userPick?.owner ?? "";
+
+    setPendingDrafts((currentDrafts) => [
+      ...currentDrafts,
+      {
+        id: crypto.randomUUID(),
+        fileName: sourceFileName,
+        picks: convertedPicks,
+        selectedTeam,
+        importError: selectedTeam === "" ? "Unable to identify your FantasyPros team." : "",
+      },
+    ]);
+  }
+
+  async function handleFantasyProsFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const contents = await file.text();
+    const parsedResponse = JSON.parse(contents) as FantasyProsDraftResponse;
+    await addFantasyProsPendingDraft(parsedResponse, file.name);
+  }
+
+  async function handleFantasyProsUrlImport() {
+    if (fantasyProsUrl.trim() === "") {
+      return;
+    }
+    const response = await fetch("/api/fantasypros/draft", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: fantasyProsUrl,
+      }),
+    });
+    const data: unknown = await response.json();
+
+    if (!isFantasyProsDraftResponse(data)) {
+      console.error("FantasyPros returned an invalid draft response.");
+      return;
+    }
+
+    if (!response.ok) {
+      console.error("FantasyPros import failed:", data);
+      return;
+    }
+
+    const sourceFileName = `fantasypros-${data.mockDraftKey.replace("nfl~", "")}.json`;
+
+    await addFantasyProsPendingDraft(data, sourceFileName);
+
+    setFantasyProsUrl("");
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-24 text-white">
       <div className="mx-auto max-w-7xl">
@@ -206,6 +280,16 @@ export default function Home() {
             <span className="absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2 animate-spin rounded-full border-2 border-r-amber-500 border-b-amber-500 border-t-amber-500" />
           </div>
         )}
+        <label htmlFor="fantasyProsUpload" className="mt-6 block max-w-2xl text-lg leading-8 text-slate-300">
+          Import FantasyPros Draft
+        </label>
+        <input id="fantasyProsUpload" type="file" accept=".json,application/json" onChange={handleFantasyProsFileChange} className="mt-2 block rounded-md border-slate-300 bg-slate-800 px-4 py-3 text-slate-300" />
+        <div className="mt-6 flex max-w-3xl gap-3">
+          <input type="url" value={fantasyProsUrl} onChange={(event) => setFantasyProsUrl(event.target.value)} placeholder="Paste FantasyPros second-screen URL" className="min-w-0 flex-1 rounded-lg bg-slate-800 px-4 py-3 text-white placeholder:text-slate-500" />
+          <button type="button" onClick={handleFantasyProsUrlImport} aria-disabled={fantasyProsUrl.trim() === ""} className="rounded-lg border border-slate-700 px-4 py-3 text-slate-300">
+            Import Fantasy Pros Mock Draft
+          </button>
+        </div>
         {pendingDrafts.length > 0 && (
           <section className="mt-6">
             <h2 className="text-xl font-bold">Pending Imports ({pendingDrafts.length})</h2>
@@ -246,13 +330,13 @@ export default function Home() {
           </span>
         )}
         <section className="mt-10">
-          <h2 className="text-2xl font-bold">Imported Drafts</h2>
+          <h2 className="text-2xl font-bold">Imported Drafts - {importedDrafts.length}</h2>
 
           {importedDrafts.length === 0 ? (
             <p className="mt-4 text-slate-400">No drafts have been saved yet.</p>
           ) : (
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {importedDrafts.map((draft) => (
+              {[...importedDrafts].reverse().map((draft) => (
                 <ImportedDraftCard key={draft.id} draft={draft} onDelete={handleDeleteDraft} />
               ))}
             </div>

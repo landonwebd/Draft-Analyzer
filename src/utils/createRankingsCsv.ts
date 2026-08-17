@@ -3,7 +3,7 @@ import type { PlayerRanking } from "@/types/draft";
 
 export function createRankingsCsv(rankings: PlayerRanking[]): string {
   const rows = rankings.map((player) => ({
-    Rank: player.rank,
+    "Personalized ADP": player.weightedScore.toFixed(2),
     Player: player.playerName,
     Position: player.position,
     "NFL Team": player.nflTeam,
@@ -18,7 +18,6 @@ export function createRankingsCsv(rankings: PlayerRanking[]): string {
     "Drafted Percent": (player.draftRate * 100).toFixed(2),
     "Draft Appearances": player.timesDrafted,
     "Total Drafts": player.totalDrafts,
-    "Weighted Score": player.weightedScore.toFixed(2),
   }));
 
   return Papa.unparse(rows);

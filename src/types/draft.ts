@@ -47,8 +47,7 @@ export type PlayerRanking = {
   personalPassPenalty: number;
 };
 
-export type RankingSortField = "rank" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
-
+export type RankingSortField = "rank" | "weightedScore" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
 export type SortDirection = "ascending" | "descending";
 
 export type PendingDraft = {

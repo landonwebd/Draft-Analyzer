@@ -13,7 +13,7 @@ import { Download } from "lucide-react";
 export default function RankingsDisplay() {
   const [rankings, setRankings] = useState<PlayerRanking[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<PositionFilter>("ALL");
-  const [sortField, setSortField] = useState<RankingSortField>("rank");
+  const [sortField, setSortField] = useState<RankingSortField>("weightedScore");
   const [sortDirection, setSortDirection] = useState<SortDirection>("ascending");
   const [searchTerm, setSearchTerm] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -129,39 +129,44 @@ export default function RankingsDisplay() {
         </button>
       </div>
       <div className="mt-6 overflow-x-auto">
+        <p className="text-sm mb-2 text-slate-300">
+          A <span className="font-semibold">meaningful pass</span> occurs when a player was available near one of your picks, but you selected someone with a later overall average draft position.
+        </p>
         <table className="w-full min-w-[1050px] table-fixed text-left">
           <colgroup>
-            <col className="w-20" />
+            <col className="w-32" />
             <col className="w-64" />
             <col className="w-24" />
             <col className="w-28" />
             <col className="w-32" />
             <col className="w-32" />
             <col className="w-36" />
-            <col className="w-24" />
           </colgroup>
           <thead className="border-b border-slate-700 text-sm text-slate-400">
             <tr>
-              <SortableHeader label="Rank" field="rank" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} />
-              <th className="w-64 px-3 py-2">Player</th>
+              <SortableHeader label="Personalized ADP" field="weightedScore" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} />
+              <th className="w-64 px-3 py-2">
+                Player <span className="text-xs font-normal">(meaningful pass)</span>
+              </th>
               <th className="px-3 py-2">Position</th>
               <SortableHeader label="My Drafts" field="myDraftCount" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
               <SortableHeader label="My Avg. Pick" field="myAverageOverallPick" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
               <SortableHeader label="Overall Avg." field="averageOverallPick" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
               <SortableHeader label="% Drafted" field="draftRate" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
-
-              <th className="px-3 py-2 text-right">Score</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-800">
             {sortedRankings.map((player) => (
               <tr key={player.playerName}>
-                <td className="px-3 py-3">{player.rank}</td>
-                <td className="px-3 py-3 font-semibold">
-                  <span className="block truncate" title={player.playerName}>
-                    {player.playerName}
-                  </span>
+                <td className="text-left px-3 py-3 tabular-nums">{player.weightedScore.toFixed(2)}</td>
+                <td className="px-3 py-3">
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <span className="min-w-0 truncate" title={player.playerName}>
+                      {player.playerName}
+                    </span>
+                    {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
+                  </div>
                 </td>
                 <td className="px-3 py-3">{player.position}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{player.myDraftCount}</td>
@@ -173,7 +178,6 @@ export default function RankingsDisplay() {
                     ({player.timesDrafted}/{player.totalDrafts})
                   </span>
                 </td>
-                <td className="px-3 py-3 text-right tabular-nums">{player.weightedScore.toFixed(1)}</td>
               </tr>
             ))}
           </tbody>
