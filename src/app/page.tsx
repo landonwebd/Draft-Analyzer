@@ -9,6 +9,7 @@ import type { FantasyProsDraftResponse } from "@/types/fantasyPros";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { buildFantasyProsPlayerLookup } from "@/utils/buildFantasyProsPlayerLookup";
 import { convertFantasyProsDraft } from "@/utils/convertFantasyProsDraft";
 import { getFantasyProsPlayers } from "@/utils/getFantasyProsPlayers";
@@ -85,6 +86,8 @@ export default function Home() {
   const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const [fantasyProsUrl, setFantasyProsUrl] = useState("");
+  const [isFantasyProsImporting, setIsFantasyProsImporting] = useState(false);
+  const [fantasyProsImportError, setFantasyProsImportError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rankingsAreAvailable = hasLoadedStorage && importedDrafts.length > 0;
 
@@ -221,74 +224,111 @@ export default function Home() {
     ]);
   }
 
-  async function handleFantasyProsFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    const contents = await file.text();
-    const parsedResponse = JSON.parse(contents) as FantasyProsDraftResponse;
-    await addFantasyProsPendingDraft(parsedResponse, file.name);
-  }
-
   async function handleFantasyProsUrlImport() {
-    if (fantasyProsUrl.trim() === "") {
-      return;
-    }
-    const response = await fetch("/api/fantasypros/draft", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: fantasyProsUrl,
-      }),
-    });
-    const data: unknown = await response.json();
-
-    if (!isFantasyProsDraftResponse(data)) {
-      console.error("FantasyPros returned an invalid draft response.");
+    if (fantasyProsUrl.trim() === "" || isFantasyProsImporting) {
       return;
     }
 
-    if (!response.ok) {
-      console.error("FantasyPros import failed:", data);
-      return;
+    setFantasyProsImportError("");
+    setIsFantasyProsImporting(true);
+
+    try {
+      const response = await fetch("/api/fantasypros/draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: fantasyProsUrl,
+        }),
+      });
+
+      const data: unknown = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = typeof data === "object" && data !== null && "error" in data && typeof data.error === "string" ? data.error : "FantasyPros could not import that draft.";
+
+        setFantasyProsImportError(errorMessage);
+        return;
+      }
+
+      if (!isFantasyProsDraftResponse(data)) {
+        setFantasyProsImportError("FantasyPros returned an unexpected draft format.");
+        return;
+      }
+      const sourceFileName = `fantasypros-${data.mockDraftKey.replace("nfl~", "")}.json`;
+      const draftAlreadyExists = importedDrafts.some((draft) => draft.sourceFileName === sourceFileName) || pendingDrafts.some((draft) => draft.fileName === sourceFileName);
+      if (draftAlreadyExists) {
+        setFantasyProsImportError("This FantasyPros draft has already been imported.");
+        return;
+      }
+      await addFantasyProsPendingDraft(data, sourceFileName);
+      setFantasyProsUrl("");
+    } catch {
+      setFantasyProsImportError("Unable to complete the FantasyPros import. Please try again.");
+    } finally {
+      setIsFantasyProsImporting(false);
     }
-
-    const sourceFileName = `fantasypros-${data.mockDraftKey.replace("nfl~", "")}.json`;
-
-    await addFantasyProsPendingDraft(data, sourceFileName);
-
-    setFantasyProsUrl("");
   }
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-24 text-white">
       <div className="mx-auto max-w-7xl">
+        <Image src="/landon-made-horizontal-dark.svg" alt="Landon Made" width={257} height={45} priority className="mb-8 h-auto w-52" />
         <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-emerald-400">Fantasy Football</p>
         <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">Draft Analyzer 1.0</h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Upload your draft results, discover your tendencies, and build a clearer picture of how you draft.</p>
-        <label htmlFor="resultsUpload" className="block mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-          Import Your Draft Results
-        </label>
-        <input ref={fileInputRef} id="resultsUpload" type="file" accept=".csv,text/csv" multiple onChange={handleFileChange} className="mt-2 py-3 px-4 block text-slate-300 rounded-md bg-slate-800 border-slate-300" name="resultsUpload" />
+        <p className="mt-3 text-sm text-slate-500">Your imported drafts are stored only in this browser.</p>
+        <p id="draftUploadDescription" className="block mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+          Import Your Draft Results from{" "}
+          <Link href="/rtsports-csv-instructions.html" target="_blank" rel="noreferrer" className="font-semibold text-sky-400 underline underline-offset-4 hover:text-sky-300">
+            RTSports
+          </Link>{" "}
+          or{" "}
+          <Link href="/espn-draft-export.html" target="_blank" rel="noreferrer" className="font-semibold text-sky-400 underline underline-offset-4 hover:text-sky-300">
+            ESPN
+          </Link>{" "}
+          (CSV file)
+        </p>
+        <input ref={fileInputRef} id="resultsUpload" type="file" accept=".csv,text/csv" multiple onChange={handleFileChange} className="mt-2 block w-full max-w-md cursor-pointer rounded-lg border border-slate-700 bg-slate-900 text-sm text-slate-400 file:mr-4 file:cursor-pointer file:border-0 file:bg-emerald-600 file:px-5 file:py-3 file:font-semibold file:text-white hover:file:bg-emerald-500" aria-labelledby="draftUploadDescription" />
         {isLoading && (
           <div className="relative h-16">
             <span className="absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2 animate-spin rounded-full border-2 border-r-amber-500 border-b-amber-500 border-t-amber-500" />
           </div>
         )}
-        <label htmlFor="fantasyProsUpload" className="mt-6 block max-w-2xl text-lg leading-8 text-slate-300">
-          Import FantasyPros Draft
-        </label>
-        <input id="fantasyProsUpload" type="file" accept=".json,application/json" onChange={handleFantasyProsFileChange} className="mt-2 block rounded-md border-slate-300 bg-slate-800 px-4 py-3 text-slate-300" />
-        <div className="mt-6 flex max-w-3xl gap-3">
-          <input type="url" value={fantasyProsUrl} onChange={(event) => setFantasyProsUrl(event.target.value)} placeholder="Paste FantasyPros second-screen URL" className="min-w-0 flex-1 rounded-lg bg-slate-800 px-4 py-3 text-white placeholder:text-slate-500" />
-          <button type="button" onClick={handleFantasyProsUrlImport} aria-disabled={fantasyProsUrl.trim() === ""} className="rounded-lg border border-slate-700 px-4 py-3 text-slate-300">
-            Import Fantasy Pros Mock Draft
-          </button>
+        <p className="block mt-6 max-w-2xl text-lg leading-8 text-slate-300">OR</p>
+        <div className="mt-6 max-w-3xl">
+          <p id="fantasyProsUrlDescription" className="block text-lg leading-8 text-slate-300">
+            Import a{" "}
+            <Link href="/fantasypros-import-instructions.html" target="_blank" rel="noreferrer" className="font-semibold text-sky-400 underline underline-offset-4 hover:text-sky-300">
+              FantasyPros
+            </Link>{" "}
+            Mock <span className="text-red-600 font-semibold">(EXPERIMENTAL)</span>
+          </p>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+            <input
+              id="fantasyProsUrl"
+              type="url"
+              value={fantasyProsUrl}
+              onChange={(event) => {
+                setFantasyProsUrl(event.target.value);
+                setFantasyProsImportError("");
+              }}
+              placeholder="Paste FantasyPros second-screen URL"
+              aria-labelledby="fantasyProsUrlDescription"
+              aria-invalid={fantasyProsImportError !== ""}
+              aria-describedby={fantasyProsImportError ? "fantasyProsImportError" : undefined}
+              className="min-w-0 flex-1 rounded-lg bg-slate-800 px-4 py-3 text-white placeholder:text-slate-500"
+            />
+            <button type="button" onClick={handleFantasyProsUrlImport} aria-disabled={fantasyProsUrl.trim() === "" || isFantasyProsImporting} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${fantasyProsUrl.trim() === "" || isFantasyProsImporting ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
+              {isFantasyProsImporting ? "Importing..." : "Import draft"}
+            </button>
+          </div>
+          {fantasyProsImportError && (
+            <p id="fantasyProsImportError" role="alert" className="mt-2 text-sm text-red-300">
+              {fantasyProsImportError}
+            </p>
+          )}
         </div>
         {pendingDrafts.length > 0 && (
           <section className="mt-6">

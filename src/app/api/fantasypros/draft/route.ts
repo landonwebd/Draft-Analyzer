@@ -1,5 +1,13 @@
+import { isFantasyProsDraftResponse } from "@/utils/isFantasyProsDraftResponse";
+
 export async function POST(request: Request) {
-  const body: unknown = await request.json();
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "The request body must contain valid JSON." }, { status: 400 });
+  }
 
   if (typeof body !== "object" || body === null || !("url" in body) || typeof body.url !== "string") {
     return Response.json({ error: "A FantasyPros URL is required." }, { status: 400 });
@@ -38,13 +46,13 @@ export async function POST(request: Request) {
       body: requestBody,
       cache: "no-store",
     });
-
     if (!fantasyProsResponse.ok) {
       return Response.json({ error: "FantasyPros could not load that draft." }, { status: 502 });
     }
-
     const data: unknown = await fantasyProsResponse.json();
-
+    if (!isFantasyProsDraftResponse(data)) {
+      return Response.json({ error: "FantasyPros returned an unexpected draft format." }, { status: 502 });
+    }
     return Response.json(data);
   } catch {
     return Response.json({ error: "Unable to contact FantasyPros." }, { status: 502 });

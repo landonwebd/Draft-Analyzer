@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import a FantasyPros Mock Draft</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #020617;
+        color: #e2e8f0;
+        font-family: system-ui, sans-serif;
+        line-height: 1.6;
+        margin: 60px auto;
+        max-width: 1240px;
+        padding: 0 24px;
+      }
+
+      h1 {
+        color: #f8fafc;
+        line-height: 1.2;
+      }
+
+      ol {
+        padding-left: 24px;
+      }
+
+      li + li {
+        margin-top: 10px;
+      }
+
+      strong {
+        color: #f8fafc;
+      }
+
+      .notice {
+        background: #450a0a;
+        border: 1px solid #991b1b;
+        border-radius: 10px;
+        color: #fecaca;
+        margin-top: 24px;
+        max-width: 820px;
+        padding: 14px 16px;
+      }
+
+      .screenshot {
+        background: #f8fafc;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        display: block;
+        height: auto;
+        margin-top: 28px;
+        max-width: 100%;
+        padding: 8px;
+      }
+
+      .back-link {
+        color: #7dd3fc;
+        display: inline-block;
+        font-weight: 700;
+        margin-top: 28px;
+        text-underline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Import Your FantasyPros Mock Draft</h1>
+      <p>After completing a Draft Wizard mock draft, create its share link and paste that link into Draft Analyzer.</p>
+
+      <ol>
+        <li>Open your completed mock draft and select the <strong>Draft Board</strong> tab.</li>
+        <li>Select <strong>Share Draft Board</strong> near the top-right corner.</li>
+        <li>Open the shared draft board and copy its full URL from your browser's address bar.</li>
+        <li>Return to Draft Analyzer, paste the URL into the FantasyPros import field, and select <strong>Import draft</strong>.</li>
+      </ol>
+
+      <p class="notice"><strong>Experimental:</strong> This importer uses FantasyPros' public share link and may stop working if FantasyPros changes its draft-board format.</p>
+
+      <img class="screenshot" src="/fantasypros-share-draft-board.png" alt="FantasyPros Draft Board with arrows pointing to the Draft Board tab and Share Draft Board button" width="1499" height="286" />
+
+      <a class="back-link" href="/">&larr; Back to Draft Analyzer</a>
+    </main>
+  </body>
+</html>

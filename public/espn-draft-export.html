@@ -11,7 +11,7 @@
         font-family: system-ui, sans-serif;
         line-height: 1.6;
         margin: 60px auto;
-        max-width: 720px;
+        max-width: 1240px;
         padding: 0 24px;
       }
 
@@ -29,13 +29,45 @@
         color: #7dd3fc;
         word-break: break-all;
       }
+
+      .notice {
+        background: #422006;
+        border: 1px solid #a16207;
+        border-radius: 10px;
+        color: #fef3c7;
+        margin-top: 24px;
+        max-width: 820px;
+        padding: 14px 16px;
+      }
+
+      .screenshot {
+        background: #f8fafc;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        display: block;
+        height: auto;
+        margin-top: 28px;
+        max-width: 100%;
+        padding: 8px;
+      }
     </style>
   </head>
   <body>
     <h1>ESPN Draft Export</h1>
-    <p>Drag the button below to your bookmarks bar. Then open a completed ESPN draft-results page and click the bookmark.</p>
+    <p>Install the exporter, then use it from a completed ESPN draft's full pick history.</p>
     <p><a id="bookmarklet" class="bookmarklet" href="#">🏈 Export ESPN Draft</a></p>
+
+    <ol>
+      <li>Drag the <strong>Export ESPN Draft</strong> button above to your browser's bookmarks bar.</li>
+      <li>Open a completed ESPN draft and select the <strong>Pick History</strong> tab.</li>
+      <li>Set the round menu to <strong>All Rounds</strong>.</li>
+      <li>Click the <strong>Export ESPN Draft</strong> bookmark in your bookmarks bar.</li>
+    </ol>
+
+    <img class="screenshot" src="/espn-pick-history-all-rounds.png" alt="ESPN draft Pick History tab with arrows pointing to Pick History and the All Rounds menu" width="1546" height="268" />
+
     <p>The exporter detects league size from the fantasy-team names on the page and creates a stable filename based on the draft contents.</p>
+    <p class="notice"><strong>Compatibility note:</strong> This exporter reads ESPN's draft-results page and may need to be updated if ESPN changes its page layout.</p>
 
     <script>
       function exportEspnDraft() {

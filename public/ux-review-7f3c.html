@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>Draft Analyzer UX Review</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #020617;
+        color: #cbd5e1;
+        font-family: system-ui, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 980px;
+        padding: 64px 24px 96px;
+      }
+
+      h1,
+      h2,
+      h3,
+      strong {
+        color: #f8fafc;
+      }
+
+      h1 {
+        font-size: clamp(2.25rem, 6vw, 4rem);
+        line-height: 1.05;
+        margin: 24px 0;
+      }
+
+      h2 {
+        margin-top: 48px;
+      }
+
+      a {
+        color: #7dd3fc;
+        text-underline-offset: 4px;
+      }
+
+      code {
+        color: #bae6fd;
+        overflow-wrap: anywhere;
+      }
+
+      li + li {
+        margin-top: 8px;
+      }
+
+      .logo {
+        display: block;
+        height: auto;
+        max-width: 260px;
+        width: 100%;
+      }
+
+      .lede {
+        font-size: 1.125rem;
+        max-width: 760px;
+      }
+
+      .notice {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        margin-top: 28px;
+        padding: 18px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .card {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 22px;
+      }
+
+      .card h3 {
+        margin-top: 0;
+      }
+
+      .button {
+        background: #059669;
+        border: 0;
+        border-radius: 10px;
+        color: #ffffff;
+        cursor: pointer;
+        display: inline-block;
+        font: inherit;
+        font-weight: 700;
+        margin-top: 10px;
+        padding: 11px 15px;
+        text-decoration: none;
+      }
+
+      .button:hover {
+        background: #10b981;
+      }
+
+      .button-secondary {
+        background: transparent;
+        border: 1px solid #475569;
+        color: #e2e8f0;
+      }
+
+      .button-secondary:hover {
+        background: #1e293b;
+      }
+
+      .url-box {
+        background: #020617;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        margin-top: 12px;
+        padding: 12px;
+      }
+
+      .expected {
+        color: #a7f3d0;
+        font-size: 0.9rem;
+      }
+
+      .checklist {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 22px 22px 22px 44px;
+      }
+
+      .feedback-list {
+        border-left: 3px solid #0284c7;
+        padding-left: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="logo" src="/landon-made-horizontal-dark.svg" alt="Landon Made" width="1285" height="225" />
+      <h1>Draft Analyzer UX Review</h1>
+      <p class="lede">Thank you for testing Draft Analyzer. Please approach the app as someone with no fantasy-football knowledge. The goal is to find unclear language, hidden actions, unexpected behavior, and places where the interface assumes too much.</p>
+
+      <div class="notice">
+        <strong>Testing note:</strong> Draft Analyzer stores drafts in browser storage. For an isolated test, use a private browsing window. Knowing this page's URL grants access to it; the page is unlinked and excluded from search indexing, but it is not password-protected.
+      </div>
+
+      <h2>Start here</h2>
+      <p><a class="button" href="/" target="_blank" rel="noreferrer">Open Draft Analyzer</a></p>
+      <p>Try completing the tasks without reading the expected results first. Use them only when you need to confirm whether the app behaved correctly.</p>
+
+      <h2>CSV test files</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>RTSports sample</h3>
+          <p>A sanitized, complete 12-team draft.</p>
+          <a class="button" href="/ux-sample-rtsports.csv" download>Download RTSports CSV</a>
+          <p class="expected"><strong>Expected:</strong> 192 picks, 12 fantasy-team options, and a 16-player roster when you select <strong>UX Tester Team</strong>.</p>
+        </section>
+
+        <section class="card">
+          <h3>ESPN sample</h3>
+          <p>A sanitized CSV created by the ESPN bookmarklet.</p>
+          <a class="button" href="/ux-sample-espn.csv" download>Download ESPN CSV</a>
+          <p class="expected"><strong>Expected:</strong> 192 picks, 12 fantasy-team options, and a 16-player roster when you select <strong>UX Tester Team</strong>.</p>
+        </section>
+      </div>
+
+      <h2>FantasyPros URL tests</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Working share URL</h3>
+          <p>Paste this into the experimental FantasyPros import field.</p>
+          <div class="url-box"><code id="validFantasyProsUrl">https://draftwizard.fantasypros.com/d/secondscreen.jsp?mockDraftKey=nfl%7Ea2ead946-9e06-4e6d-a494-119e49c42cbb</code></div>
+          <button class="button button-secondary" type="button" data-copy-target="validFantasyProsUrl">Copy working URL</button>
+          <p class="expected"><strong>Expected:</strong> A pending import with 192 picks and the user's FantasyPros team selected automatically.</p>
+        </section>
+
+        <section class="card">
+          <h3>Invalid URL</h3>
+          <p>Use this to test whether the error message is understandable.</p>
+          <div class="url-box"><code id="invalidFantasyProsUrl">https://example.com/not-a-fantasypros-draft</code></div>
+          <button class="button button-secondary" type="button" data-copy-target="invalidFantasyProsUrl">Copy invalid URL</button>
+          <p class="expected"><strong>Expected:</strong> “This is not a FantasyPros second-screen URL.”</p>
+        </section>
+      </div>
+
+      <h2>Suggested test</h2>
+      <ol class="checklist">
+        <li>Without importing anything, explore the home page and describe what you believe the app does.</li>
+        <li>Import both CSV samples at the same time.</li>
+        <li>Choose <strong>UX Tester Team</strong> and save each pending draft.</li>
+        <li>Import the working FantasyPros URL and save that draft.</li>
+        <li>Try importing the same FantasyPros URL again.</li>
+        <li>Try the invalid FantasyPros URL.</li>
+        <li>Open an imported draft and test its position, team, and player-search filters.</li>
+        <li>Return home and delete one draft.</li>
+        <li>Open the Personalized Rankings page and test its filters and sortable columns.</li>
+        <li>Download the rankings CSV.</li>
+        <li>Refresh the browser and confirm the remaining drafts persist.</li>
+        <li>Try the experience at a narrow/mobile browser width.</li>
+      </ol>
+
+      <h2>Feedback prompts</h2>
+      <div class="feedback-list">
+        <p>Could you tell what the application was for immediately?</p>
+        <p>Which fantasy-football terms were unclear?</p>
+        <p>Was the difference between a pending import and a saved draft understandable?</p>
+        <p>Did Personalized ADP and meaningful passes make sense?</p>
+        <p>Were the RTSports, ESPN, and FantasyPros instructions easy to discover?</p>
+        <p>Were error messages useful?</p>
+        <p>What did you expect to happen that did not happen?</p>
+        <p>Where, if anywhere, did you feel stuck?</p>
+      </div>
+
+      <script>
+        document.querySelectorAll("[data-copy-target]").forEach(function (button) {
+          button.addEventListener("click", async function () {
+            var target = document.getElementById(button.dataset.copyTarget);
+
+            if (!target) {
+              return;
+            }
+
+            try {
+              await navigator.clipboard.writeText(target.textContent);
+              var originalText = button.textContent;
+              button.textContent = "Copied!";
+              setTimeout(function () {
+                button.textContent = originalText;
+              }, 1500);
+            } catch {
+              window.prompt("Copy this URL:", target.textContent);
+            }
+          });
+        });
+      </script>
+    </main>
+  </body>
+</html>

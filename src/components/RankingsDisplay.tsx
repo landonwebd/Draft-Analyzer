@@ -41,14 +41,21 @@ export default function RankingsDisplay() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+      try {
+        const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
 
-      if (storedValue) {
-        const drafts = JSON.parse(storedValue) as ImportedDraft[];
-        setRankings(buildPlayerRankings(drafts));
+        if (storedValue) {
+          const parsedValue: unknown = JSON.parse(storedValue);
+
+          if (Array.isArray(parsedValue)) {
+            setRankings(buildPlayerRankings(parsedValue as ImportedDraft[]));
+          }
+        }
+      } catch (error) {
+        console.error("Unable to load saved drafts for rankings:", error);
+      } finally {
+        setHasLoaded(true);
       }
-
-      setHasLoaded(true);
     }, 0);
 
     return () => {
@@ -118,7 +125,7 @@ export default function RankingsDisplay() {
 
   return (
     <div className="mt-8">
-      <div className="grid grid-cols-[repeat(4,auto)] gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,auto)]">
         <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
         <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
         <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
