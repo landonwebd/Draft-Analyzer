@@ -47,6 +47,13 @@ export type PlayerRanking = {
   personalPassPenalty: number;
 };
 
+export type DraftTrackerStatus = "available" | "mine" | "taken";
+export type DraftTrackerState = Record<string, DraftTrackerStatus>;
+export type DraftTrackerSession = {
+  isActive: boolean;
+  playerStatuses: DraftTrackerState;
+};
+
 export type RankingSortField = "rank" | "weightedScore" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
 export type SortDirection = "ascending" | "descending";
 

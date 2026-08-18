@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ImportedDraft, PlayerRanking, PositionFilter, RankingSortField, SortDirection } from "@/types/draft";
+import type { ImportedDraft, PlayerRanking, PositionFilter, RankingSortField, SortDirection, DraftTrackerState, DraftTrackerStatus, DraftTrackerSession } from "@/types/draft";
 import FilterSelect from "@/components/FilterSelect";
 import SortableHeader from "@/components/SortableHeader";
-import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
+import { DRAFT_STORAGE_KEY, DRAFT_TRACKER_STORAGE_KEY } from "@/utils/draftStorage";
 import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { positionOptions } from "@/utils/positionOptions";
 import { createRankingsCsv } from "@/utils/createRankingsCsv";
-import { Download } from "lucide-react";
+import { createPlayerKey } from "@/utils/createPlayerKey";
+import { Download, Bomb } from "lucide-react";
 
 export default function RankingsDisplay() {
   const [rankings, setRankings] = useState<PlayerRanking[]>([]);
@@ -17,6 +18,11 @@ export default function RankingsDisplay() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("ascending");
   const [searchTerm, setSearchTerm] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [isDraftTrackerModeActive, setIsDraftTrackerModeActive] = useState(false);
+  const [draftTrackerState, setDraftTrackerState] = useState<DraftTrackerState>({});
+  const [showDraftTrackerExitConfirmation, setShowDraftTrackerExitConfirmation] = useState(false);
+  const [hasLoadedDraftTrackerSession, setHasLoadedDraftTrackerSession] = useState(false);
+  const hasDraftTrackerProgress = Object.keys(draftTrackerState).length > 0;
   const filteredRankings = rankings.filter((player) => {
     const matchesPosition = selectedPosition === "ALL" || player.position === selectedPosition;
     const matchesSearch = player.playerName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -38,7 +44,19 @@ export default function RankingsDisplay() {
     const difference = firstValue - secondValue;
     return sortDirection === "ascending" ? difference : -difference;
   });
-
+  const draftTrackerCounts = rankings.reduce(
+    (counts, player) => {
+      const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
+      const status = draftTrackerState[playerKey] ?? "available";
+      counts[status] += 1;
+      return counts;
+    },
+    {
+      available: 0,
+      mine: 0,
+      taken: 0,
+    } satisfies Record<DraftTrackerStatus, number>,
+  );
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       try {
@@ -62,7 +80,46 @@ export default function RankingsDisplay() {
       window.clearTimeout(timeoutId);
     };
   }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      try {
+        const storedValue = window.sessionStorage.getItem(DRAFT_TRACKER_STORAGE_KEY);
 
+        if (storedValue) {
+          const parsedValue: unknown = JSON.parse(storedValue);
+
+          if (typeof parsedValue === "object" && parsedValue !== null && "isActive" in parsedValue && "playerStatuses" in parsedValue) {
+            const storedSession = parsedValue as DraftTrackerSession;
+
+            if (typeof storedSession.isActive === "boolean" && typeof storedSession.playerStatuses === "object" && storedSession.playerStatuses !== null && !Array.isArray(storedSession.playerStatuses)) {
+              setIsDraftTrackerModeActive(storedSession.isActive);
+              setDraftTrackerState(storedSession.playerStatuses);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Unable to load the Draft Tracker session:", error);
+      } finally {
+        setHasLoadedDraftTrackerSession(true);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+  useEffect(() => {
+    if (!hasLoadedDraftTrackerSession) {
+      return;
+    }
+
+    const sessionToSave: DraftTrackerSession = {
+      isActive: isDraftTrackerModeActive,
+      playerStatuses: draftTrackerState,
+    };
+
+    window.sessionStorage.setItem(DRAFT_TRACKER_STORAGE_KEY, JSON.stringify(sessionToSave));
+  }, [draftTrackerState, hasLoadedDraftTrackerSession, isDraftTrackerModeActive]);
   function handleSelectedPosition(event: React.ChangeEvent<HTMLSelectElement>) {
     setSelectedPosition(event.target.value as PositionFilter);
   }
@@ -123,6 +180,61 @@ export default function RankingsDisplay() {
     window.URL.revokeObjectURL(downloadUrl);
   }
 
+  function handleDraftTrackerModeChange() {
+    if (!isDraftTrackerModeActive) {
+      setIsDraftTrackerModeActive(true);
+      return;
+    }
+
+    if (!hasDraftTrackerProgress) {
+      setIsDraftTrackerModeActive(false);
+      return;
+    }
+
+    setShowDraftTrackerExitConfirmation(true);
+  }
+
+  function handleDraftTrackerStatusChange(player: PlayerRanking, nextStatus: DraftTrackerStatus) {
+    const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
+
+    setDraftTrackerState((currentState) => {
+      if (nextStatus === "available") {
+        const nextState = { ...currentState };
+        delete nextState[playerKey];
+        return nextState;
+      }
+
+      return {
+        ...currentState,
+        [playerKey]: nextStatus,
+      };
+    });
+  }
+
+  function handleConfirmDraftTrackerExit() {
+    setDraftTrackerState({});
+    setIsDraftTrackerModeActive(false);
+    setShowDraftTrackerExitConfirmation(false);
+  }
+
+  function handleCycleDraftTrackerStatus(player: PlayerRanking, currentStatus: DraftTrackerStatus) {
+    let nextStatus: DraftTrackerStatus;
+
+    switch (currentStatus) {
+      case "available":
+        nextStatus = "taken";
+        break;
+      case "taken":
+        nextStatus = "mine";
+        break;
+      case "mine":
+        nextStatus = "available";
+        break;
+    }
+
+    handleDraftTrackerStatusChange(player, nextStatus);
+  }
+
   return (
     <div className="mt-8">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,auto)]">
@@ -135,13 +247,64 @@ export default function RankingsDisplay() {
           <Download />
         </button>
       </div>
+      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <span id="draft-tracker-label" className="font-semibold text-slate-200">
+          Draft Tracker Mode
+        </span>
+        <button type="button" role="switch" aria-checked={isDraftTrackerModeActive} aria-labelledby="draft-tracker-label" onClick={handleDraftTrackerModeChange} className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none ${isDraftTrackerModeActive ? "border-emerald-500 bg-emerald-600" : "border-slate-600 bg-slate-700"}`}>
+          <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-md transition-transform duration-200 ${isDraftTrackerModeActive ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
+        <span className="text-sm text-slate-400">{isDraftTrackerModeActive ? "On" : "Off"}</span>
+        {isDraftTrackerModeActive && (
+          <dl className="flex flex-wrap gap-2 sm:ml-auto">
+            <div className="flex items-center gap-2 rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-300">
+              <dt>Available</dt>
+              <dd className="font-bold tabular-nums">{draftTrackerCounts.available}</dd>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-amber-600 bg-amber-950 px-3 py-1 text-sm text-amber-300">
+              <dt>Unavailable</dt>
+              <dd className="font-bold tabular-nums">{draftTrackerCounts.taken}</dd>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-sky-500 bg-sky-950 px-3 py-1 text-sm text-sky-300">
+              <dt>Mine</dt>
+              <dd className="font-bold tabular-nums">{draftTrackerCounts.mine}</dd>
+            </div>
+          </dl>
+        )}
+      </div>
+      {showDraftTrackerExitConfirmation && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="draft-tracker-exit-dialog-title" className="w-full max-w-md rounded-2xl border border-red-900/70 bg-slate-900 p-6 text-slate-100 shadow-2xl shadow-red-950/50">
+            <div className="mx-auto grid size-14 place-items-center rounded-full border border-red-700 bg-red-950 text-red-300">
+              <Bomb className="size-7" aria-hidden="true" />
+            </div>
+            <h3 id="draft-tracker-exit-dialog-title" className="mt-4 text-center text-2xl font-bold">
+              Turn Off Draft Tracker Mode?
+            </h3>
+            <p className="mt-3 text-center text-slate-300">
+              This will clear every <span className="text-sky-300">Mine</span> and <span className="text-amber-300">Unavailable</span> selection from your current tracker session.
+            </p>
+            <p className="mt-3 text-center text-sm text-slate-400">Your imported drafts and Personalized ADP will not be affected.</p>
+            <p className="mt-3 text-center text-sm font-semibold uppercase tracking-wide text-red-400">This action cannot be undone.</p>
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+              <button type="button" onClick={() => setShowDraftTrackerExitConfirmation(false)} className="cursor-pointer rounded-lg border border-slate-600 px-5 py-3 font-semibold text-slate-200 transition-colors hover:bg-slate-800">
+                Never mind
+              </button>
+              <button type="button" onClick={handleConfirmDraftTrackerExit} className="cursor-pointer rounded-lg bg-red-600 px-5 py-3 font-bold text-white transition-colors hover:bg-red-500">
+                Turn off Draft Tracker Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mt-6 overflow-x-auto">
         <p className="text-sm mb-2 text-slate-300">
           A <span className="font-semibold">meaningful pass</span> occurs when a player was available near one of your picks, but you selected someone with a later overall average draft position.
         </p>
         <table className="w-full min-w-[1050px] table-fixed text-left">
           <colgroup>
-            <col className="w-32" />
+            {isDraftTrackerModeActive && <col className="w-36" />}
+            <col className="w-36" />
             <col className="w-64" />
             <col className="w-24" />
             <col className="w-28" />
@@ -151,6 +314,7 @@ export default function RankingsDisplay() {
           </colgroup>
           <thead className="border-b border-slate-700 text-sm text-slate-400">
             <tr>
+              {isDraftTrackerModeActive && <th className="w-48 px-3 py-2 text-center">Draft Status</th>}
               <SortableHeader label="Personalized ADP" field="weightedScore" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} />
               <th className="w-64 px-3 py-2">
                 Player <span className="text-xs font-normal">(meaningful pass)</span>
@@ -164,29 +328,44 @@ export default function RankingsDisplay() {
           </thead>
 
           <tbody className="divide-y divide-slate-800">
-            {sortedRankings.map((player) => (
-              <tr key={player.rank}>
-                <td className="text-left px-3 py-3 tabular-nums">{player.weightedScore.toFixed(2)}</td>
-                <td className="px-3 py-3">
-                  <div className="flex min-w-0 items-baseline gap-2">
-                    <span className="min-w-0 truncate" title={player.playerName}>
-                      {player.playerName}
+            {sortedRankings.map((player) => {
+              const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
+              const trackerStatus = draftTrackerState[playerKey] ?? "available";
+              const trackerStatusLabel = trackerStatus === "available" ? "Available" : trackerStatus === "taken" ? "Unavailable" : "Mine";
+              const trackerStatusClasses = trackerStatus === "available" ? "border-slate-600 bg-slate-800 text-slate-300" : trackerStatus === "taken" ? "border-amber-300 bg-amber-400 text-slate-950" : "border-sky-300 bg-sky-400 text-slate-950";
+              const trackerRowClasses = !isDraftTrackerModeActive ? "" : trackerStatus === "taken" ? "bg-amber-950/60 [&>td:not(:first-child)]:line-through [&>td:not(:first-child)]:decoration-1 [&>td:not(:first-child)]:decoration-amber-400" : trackerStatus === "mine" ? "bg-sky-900/70" : "";
+              return (
+                <tr key={playerKey} className={trackerRowClasses}>
+                  {isDraftTrackerModeActive && (
+                    <td className="px-3 py-3">
+                      <button type="button" onClick={() => handleCycleDraftTrackerStatus(player, trackerStatus)} aria-label={`${player.playerName}: ${trackerStatusLabel}. Click to change status.`} className={`inline-flex min-w-28 cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors ${trackerStatusClasses}`}>
+                        <span aria-hidden="true" className="size-2 rounded-full bg-current" />
+                        {trackerStatusLabel}
+                      </button>
+                    </td>
+                  )}
+                  <td className="text-left px-3 py-3 tabular-nums">{player.weightedScore.toFixed(2)}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <span className="min-w-0 truncate" title={player.playerName}>
+                        {player.playerName}
+                      </span>
+                      {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3">{player.position}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{player.myDraftCount}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{player.myAverageOverallPick === null ? "—" : player.myAverageOverallPick.toFixed(1)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{player.averageOverallPick.toFixed(1)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    {(player.draftRate * 100).toFixed(0)}%
+                    <span className="ml-2 text-xs text-slate-500">
+                      ({player.timesDrafted}/{player.totalDrafts})
                     </span>
-                    {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3">{player.position}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{player.myDraftCount}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{player.myAverageOverallPick === null ? "—" : player.myAverageOverallPick.toFixed(1)}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{player.averageOverallPick.toFixed(1)}</td>
-                <td className="px-3 py-3 text-right tabular-nums">
-                  {(player.draftRate * 100).toFixed(0)}%
-                  <span className="ml-2 text-xs text-slate-500">
-                    ({player.timesDrafted}/{player.totalDrafts})
-                  </span>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
