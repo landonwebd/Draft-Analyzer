@@ -7,17 +7,17 @@ function assertNever(value: never): never {
 export function getPositionColor(position: Position) {
   switch (position) {
     case "QB":
-      return "bg-rose-950";
+      return "bg-red-900";
     case "RB":
-      return "bg-emerald-950";
+      return "bg-emerald-900";
     case "WR":
-      return "bg-sky-950";
+      return "bg-sky-900";
     case "TE":
-      return "bg-lime-700";
+      return "bg-amber-800";
     case "K":
-      return "bg-fuchsia-950";
+      return "bg-violet-900";
     case "DST":
-      return "bg-orange-950";
+      return "bg-slate-600";
     default:
       return assertNever(position);
   }

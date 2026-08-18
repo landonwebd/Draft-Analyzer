@@ -7,7 +7,7 @@ import ImportedDraftCard from "@/components/ImportedDraftCard";
 import type { DraftPick, ImportedDraft, Position, PendingDraft } from "@/types/draft";
 import type { FantasyProsDraftResponse } from "@/types/fantasyPros";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
-import { MoveRight } from "lucide-react";
+import { Bomb, MoveRight, ChevronRight, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { buildFantasyProsPlayerLookup } from "@/utils/buildFantasyProsPlayerLookup";
@@ -18,6 +18,7 @@ import { isFantasyProsDraftResponse } from "@/utils/isFantasyProsDraftResponse";
 type CsvRow = Record<string, string>;
 
 const requiredHeaders = ["OVERALL", "PICK", "PLAYER", "POS", "TEAM"];
+const DRAFTS_PER_PAGE = 9;
 
 function isPosition(value: string): value is Position {
   return ["QB", "RB", "WR", "TE", "K", "DST"].includes(value);
@@ -88,8 +89,15 @@ export default function Home() {
   const [fantasyProsUrl, setFantasyProsUrl] = useState("");
   const [isFantasyProsImporting, setIsFantasyProsImporting] = useState(false);
   const [fantasyProsImportError, setFantasyProsImportError] = useState("");
+  const [showBoomConfirmation, setShowBoomConfirmation] = useState(false);
+  const [currentDraftPage, setCurrentDraftPage] = useState(1);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rankingsAreAvailable = hasLoadedStorage && importedDrafts.length > 0;
+  const totalDraftPages = Math.ceil(importedDrafts.length / DRAFTS_PER_PAGE);
+  const newestDrafts = [...importedDrafts].reverse();
+  const firstDraftIndex = (currentDraftPage - 1) * DRAFTS_PER_PAGE;
+  const visibleDrafts = newestDrafts.slice(firstDraftIndex, firstDraftIndex + DRAFTS_PER_PAGE);
 
   useEffect(() => {
     if (fileInputRef.current) {
@@ -124,7 +132,22 @@ export default function Home() {
   }, [importedDrafts, hasLoadedStorage]);
 
   function handleDeleteDraft(draftId: string) {
-    setImportedDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== draftId));
+    const remainingDrafts = importedDrafts.filter((draft) => draft.id !== draftId);
+
+    const remainingPageCount = Math.max(1, Math.ceil(remainingDrafts.length / DRAFTS_PER_PAGE));
+
+    setImportedDrafts(remainingDrafts);
+
+    setCurrentDraftPage((currentPage) => Math.min(currentPage, remainingPageCount));
+  }
+
+  function handleDeleteAllDrafts() {
+    if (importedDrafts.length === 0) {
+      return;
+    }
+    setImportedDrafts([]);
+    setShowBoomConfirmation(false);
+    setCurrentDraftPage(1);
   }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -188,6 +211,7 @@ export default function Home() {
       picks: pendingDraft.picks,
     };
     setImportedDrafts((currentDrafts) => [...currentDrafts, importedDraft]);
+    setCurrentDraftPage(1);
     setPendingDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== pendingDraftId));
   }
 
@@ -197,6 +221,14 @@ export default function Home() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  }
+
+  function handlePreviousDraftPage() {
+    setCurrentDraftPage((currentPage) => Math.max(currentPage - 1, 1));
+  }
+
+  function handleNextDraftPage() {
+    setCurrentDraftPage((currentPage) => Math.min(currentPage + 1, totalDraftPages));
   }
 
   function pendingDraftCannotBeSaved(pendingDraft: PendingDraft) {
@@ -371,14 +403,57 @@ export default function Home() {
         )}
         <section className="mt-10">
           <h2 className="text-2xl font-bold">Imported Drafts - {importedDrafts.length}</h2>
+          {importedDrafts.length > DRAFTS_PER_PAGE && (
+            <div className="flex items-center justify-center gap-4">
+              <button type="button" aria-label="Previous page" onClick={handlePreviousDraftPage} disabled={currentDraftPage === 1} className="cursor-pointer rounded-lg border border-slate-700 p-2 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
+                <ChevronLeft aria-hidden="true" />
+              </button>
 
+              <p className="text-sm text-slate-400">
+                Page {currentDraftPage} of {totalDraftPages}
+              </p>
+
+              <button type="button" aria-label="Next page" onClick={handleNextDraftPage} disabled={currentDraftPage === totalDraftPages} className="cursor-pointer rounded-lg border border-slate-700 p-2 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
+                <ChevronRight aria-hidden="true" />
+              </button>
+            </div>
+          )}
           {importedDrafts.length === 0 ? (
             <p className="mt-4 text-slate-400">No drafts have been saved yet.</p>
           ) : (
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {[...importedDrafts].reverse().map((draft) => (
+              {visibleDrafts.map((draft) => (
                 <ImportedDraftCard key={draft.id} draft={draft} onDelete={handleDeleteDraft} />
               ))}
+            </div>
+          )}
+          {importedDrafts.length !== 0 && (
+            <button type="button" onClick={() => setShowBoomConfirmation(true)} className={`mt-8 rounded-lg border-2 transition-colors duration-300 border-red-600 px-4 py-3 text-red-400 ${importedDrafts.length === 0 ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-red-500 hover:text-white"}`}>
+              Delete All Drafts
+            </button>
+          )}
+          {showBoomConfirmation && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur-sm">
+              <div role="dialog" aria-modal="true" aria-labelledby="boom-dialog-title" className="w-full max-w-md rounded-2xl border border-red-900/70 bg-slate-900 p-6 text-slate-100 shadow-2xl shadow-red-950/50">
+                <div className="mx-auto grid size-14 place-items-center rounded-full border border-red-700 bg-red-950 text-red-300">
+                  <Bomb className="size-7" aria-hidden="true" />
+                </div>
+                <h3 id="boom-dialog-title" className="mt-4 text-center text-2xl font-bold">
+                  Delete all imported drafts?
+                </h3>
+                <p className="mt-3 text-center text-slate-300">
+                  You are about to permanently delete all <strong className="text-white">{importedDrafts.length} imported drafts</strong> from this browser.
+                </p>
+                <p className="mt-3 text-center text-sm font-semibold uppercase tracking-wide text-red-400">This action cannot be undone.</p>
+                <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+                  <button type="button" onClick={() => setShowBoomConfirmation(false)} className="cursor-pointer rounded-lg border border-slate-600 px-5 py-3 font-semibold text-slate-200 transition-colors hover:bg-slate-800">
+                    Never mind
+                  </button>
+                  <button type="button" onClick={handleDeleteAllDrafts} className="cursor-pointer rounded-lg bg-red-600 px-5 py-3 font-bold text-white transition-colors hover:bg-red-500">
+                    BOOM! Delete everything
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>
