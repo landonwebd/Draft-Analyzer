@@ -147,9 +147,21 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
   });
 
   const sortedRankings = rankings.sort((firstPlayer, secondPlayer) => firstPlayer.weightedScore - secondPlayer.weightedScore);
+  const positionCounts: Record<Position, number> = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    K: 0,
+    DST: 0,
+  };
 
-  return sortedRankings.map((player, index) => ({
-    ...player,
-    rank: index + 1,
-  }));
+  return sortedRankings.map((player, index) => {
+    positionCounts[player.position] += 1;
+    return {
+      ...player,
+      rank: index + 1,
+      positionRank: positionCounts[player.position],
+    };
+  });
 }

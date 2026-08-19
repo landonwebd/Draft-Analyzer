@@ -38,6 +38,7 @@ export type PlayerRanking = {
   averageOverallPick: number;
   weightedScore: number;
   rank: number;
+  positionRank: number;
   myDraftCount: number;
   myAverageOverallPick: number | null;
   myDraftRate: number;

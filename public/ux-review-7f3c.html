@@ -175,6 +175,15 @@
           <a class="button" href="/ux-sample-espn.csv" download>Download ESPN CSV</a>
           <p class="expected"><strong>Expected:</strong> 192 picks, 12 fantasy-team options, and a 16-player roster when you select <strong>UX Tester Team</strong>.</p>
         </section>
+
+        <section class="card">
+          <h3>Large rankings test set</h3>
+          <p>Twenty sanitized drafts for testing rankings, tiers, filters, pagination, and Draft Tracker Mode.</p>
+          <p><a class="button" href="/ux-large-draft-test-set.zip" download>Download 20-Draft ZIP</a></p>
+          <button class="button button-secondary" id="loadSampleDrafts" type="button">Load 20 Sample Drafts</button>
+          <p class="expected"><strong>Download:</strong> Unzip the folder, select all 20 CSV files, and choose <strong>UX Tester Team</strong> for each pending import.</p>
+          <p class="expected"><strong>Quick load:</strong> Replaces drafts stored in this browser and opens the app with all 20 drafts already saved.</p>
+        </section>
       </div>
 
       <h2>FantasyPros URL tests</h2>
@@ -225,6 +234,41 @@
       </div>
 
       <script>
+        document.getElementById("loadSampleDrafts").addEventListener("click", async function () {
+          var shouldContinue = window.confirm("Load 20 sample drafts? This will replace imported drafts and clear Draft Tracker progress stored in this browser.");
+
+          if (!shouldContinue) {
+            return;
+          }
+
+          var button = this;
+          var originalText = button.textContent;
+          button.disabled = true;
+          button.textContent = "Loading sample drafts...";
+
+          try {
+            var response = await fetch("/ux-sample-drafts.json");
+
+            if (!response.ok) {
+              throw new Error("Unable to download the sample drafts.");
+            }
+
+            var sampleDrafts = await response.json();
+
+            if (!Array.isArray(sampleDrafts) || sampleDrafts.length !== 20) {
+              throw new Error("The sample draft set is invalid.");
+            }
+
+            window.localStorage.setItem("draft-analyzer:imported-drafts:v1", JSON.stringify(sampleDrafts));
+            window.sessionStorage.removeItem("draft-analyzer:draft-tracker:v1");
+            window.location.href = "/";
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : "Unable to load the sample drafts.");
+            button.disabled = false;
+            button.textContent = originalText;
+          }
+        });
+
         document.querySelectorAll("[data-copy-target]").forEach(function (button) {
           button.addEventListener("click", async function () {
             var target = document.getElementById(button.dataset.copyTarget);

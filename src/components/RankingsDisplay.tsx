@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import type { ImportedDraft, PlayerRanking, PositionFilter, RankingSortField, SortDirection, DraftTrackerState, DraftTrackerStatus, DraftTrackerSession } from "@/types/draft";
 import FilterSelect from "@/components/FilterSelect";
 import SortableHeader from "@/components/SortableHeader";
@@ -9,6 +9,7 @@ import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { positionOptions } from "@/utils/positionOptions";
 import { createRankingsCsv } from "@/utils/createRankingsCsv";
 import { createPlayerKey } from "@/utils/createPlayerKey";
+import { addRankingTiers } from "@/utils/addRankingTiers";
 import { Download, Bomb } from "lucide-react";
 
 export default function RankingsDisplay() {
@@ -23,11 +24,9 @@ export default function RankingsDisplay() {
   const [showDraftTrackerExitConfirmation, setShowDraftTrackerExitConfirmation] = useState(false);
   const [hasLoadedDraftTrackerSession, setHasLoadedDraftTrackerSession] = useState(false);
   const hasDraftTrackerProgress = Object.keys(draftTrackerState).length > 0;
-  const filteredRankings = rankings.filter((player) => {
-    const matchesPosition = selectedPosition === "ALL" || player.position === selectedPosition;
-    const matchesSearch = player.playerName.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesPosition && matchesSearch;
-  });
+  const positionFilteredRankings = selectedPosition === "ALL" ? rankings : rankings.filter((player) => player.position === selectedPosition);
+  const rankingsWithTiers = addRankingTiers(positionFilteredRankings);
+  const filteredRankings = rankingsWithTiers.filter((player) => player.playerName.toLowerCase().includes(searchTerm.toLowerCase()));
   const filtersAreClear = selectedPosition === "ALL" && searchTerm === "";
   const sortedRankings = [...filteredRankings].sort((firstPlayer, secondPlayer) => {
     const firstValue = firstPlayer[sortField];
@@ -57,6 +56,7 @@ export default function RankingsDisplay() {
       taken: 0,
     } satisfies Record<DraftTrackerStatus, number>,
   );
+  const tierRowsAreVisible = sortField === "weightedScore" && sortDirection === "ascending";
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       try {
@@ -237,40 +237,48 @@ export default function RankingsDisplay() {
 
   return (
     <div className="mt-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,auto)]">
-        <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
-        <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
-        <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
-          Clear Filters
-        </button>
-        <button type="button" onClick={handleExportRankings} aria-label="Export rankings as CSV" title="Export rankings as CSV" aria-disabled={sortedRankings.length === 0} className="w-fit rounded-lg border border-slate-700 px-4 py-3 text-slate-300 cursor-pointer hover:bg-slate-800">
-          <Download />
-        </button>
-      </div>
-      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <span id="draft-tracker-label" className="font-semibold text-slate-200">
-          Draft Tracker Mode
-        </span>
-        <button type="button" role="switch" aria-checked={isDraftTrackerModeActive} aria-labelledby="draft-tracker-label" onClick={handleDraftTrackerModeChange} className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none ${isDraftTrackerModeActive ? "border-emerald-500 bg-emerald-600" : "border-slate-600 bg-slate-700"}`}>
-          <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-md transition-transform duration-200 ${isDraftTrackerModeActive ? "translate-x-6" : "translate-x-1"}`} />
-        </button>
-        <span className="text-sm text-slate-400">{isDraftTrackerModeActive ? "On" : "Off"}</span>
-        {isDraftTrackerModeActive && (
-          <dl className="flex flex-wrap gap-2 sm:ml-auto">
-            <div className="flex items-center gap-2 rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-300">
-              <dt>Available</dt>
-              <dd className="font-bold tabular-nums">{draftTrackerCounts.available}</dd>
-            </div>
-            <div className="flex items-center gap-2 rounded-full border border-amber-600 bg-amber-950 px-3 py-1 text-sm text-amber-300">
-              <dt>Unavailable</dt>
-              <dd className="font-bold tabular-nums">{draftTrackerCounts.taken}</dd>
-            </div>
-            <div className="flex items-center gap-2 rounded-full border border-sky-500 bg-sky-950 px-3 py-1 text-sm text-sky-300">
-              <dt>Mine</dt>
-              <dd className="font-bold tabular-nums">{draftTrackerCounts.mine}</dd>
-            </div>
-          </dl>
-        )}
+      <div className="bg-slate-950 xl:sticky xl:top-0 xl:z-40 xl:py-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,auto)]">
+          <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
+          <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
+          <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
+            Clear Filters
+          </button>
+          <button type="button" onClick={handleExportRankings} aria-label="Export rankings as CSV" title="Export rankings as CSV" aria-disabled={sortedRankings.length === 0} className="w-fit rounded-lg border border-slate-700 px-4 py-3 text-slate-300 cursor-pointer hover:bg-slate-800">
+            <Download />
+          </button>
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl bg-slate-900 p-4">
+          <span id="draft-tracker-label" className="font-semibold text-slate-200">
+            Draft Tracker Mode
+          </span>
+          <button type="button" role="switch" aria-checked={isDraftTrackerModeActive} aria-labelledby="draft-tracker-label" onClick={handleDraftTrackerModeChange} className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none ${isDraftTrackerModeActive ? "border-emerald-500 bg-emerald-600" : "border-slate-600 bg-slate-700"}`}>
+            <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-md transition-transform duration-200 ${isDraftTrackerModeActive ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+          <span className="text-sm text-slate-400">{isDraftTrackerModeActive ? "On" : "Off"}</span>
+          {isDraftTrackerModeActive && (
+            <dl className="flex flex-wrap gap-2 sm:ml-auto">
+              <div className="flex items-center gap-2 rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-300">
+                <dt>Available</dt>
+                <dd className="font-bold tabular-nums">{draftTrackerCounts.available}</dd>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-amber-600 bg-amber-950 px-3 py-1 text-sm text-amber-300">
+                <dt>Unavailable</dt>
+                <dd className="font-bold tabular-nums">{draftTrackerCounts.taken}</dd>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-sky-500 bg-sky-950 px-3 py-1 text-sm text-sky-300">
+                <dt>Mine</dt>
+                <dd className="font-bold tabular-nums">{draftTrackerCounts.mine}</dd>
+              </div>
+            </dl>
+          )}
+        </div>
+        <p className="text-sm mt-2 text-slate-300">
+          A <span className="font-semibold">meaningful pass</span> occurs when a player was available near one of your picks, but you selected someone with a later overall average draft position.
+        </p>
+        <p className="mt-2 text-sm text-slate-300">
+          <span className="font-semibold">Tiers:</span> <span className="text-sky-300">Meaningful</span> gaps between players create a new tier. Tiers only display when sorting by Personalized ADP.
+        </p>
       </div>
       {showDraftTrackerExitConfirmation && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur-sm">
@@ -297,10 +305,7 @@ export default function RankingsDisplay() {
           </div>
         </div>
       )}
-      <div className="mt-6 overflow-x-auto">
-        <p className="text-sm mb-2 text-slate-300">
-          A <span className="font-semibold">meaningful pass</span> occurs when a player was available near one of your picks, but you selected someone with a later overall average draft position.
-        </p>
+      <div className="overflow-x-auto xl:overflow-x-visible">
         <table className="w-full min-w-[1050px] table-fixed text-left">
           <colgroup>
             {isDraftTrackerModeActive && <col className="w-36" />}
@@ -312,9 +317,9 @@ export default function RankingsDisplay() {
             <col className="w-32" />
             <col className="w-36" />
           </colgroup>
-          <thead className="border-b border-slate-700 text-sm text-slate-400">
+          <thead className="text-sm text-slate-400 xl:sticky xl:top-[210px] xl:z-30 xl:bg-slate-700 xl:shadow-md">
             <tr>
-              {isDraftTrackerModeActive && <th className="w-48 px-3 py-2 text-center">Draft Status</th>}
+              {isDraftTrackerModeActive && <th className="w-36 px-3 py-2 text-left">Draft Status</th>}
               <SortableHeader label="Personalized ADP" field="weightedScore" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} />
               <th className="w-64 px-3 py-2">
                 Player <span className="text-xs font-normal">(meaningful pass)</span>
@@ -328,42 +333,55 @@ export default function RankingsDisplay() {
           </thead>
 
           <tbody className="divide-y divide-slate-800">
-            {sortedRankings.map((player) => {
+            {sortedRankings.map((player, index) => {
               const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
               const trackerStatus = draftTrackerState[playerKey] ?? "available";
               const trackerStatusLabel = trackerStatus === "available" ? "Available" : trackerStatus === "taken" ? "Unavailable" : "Mine";
               const trackerStatusClasses = trackerStatus === "available" ? "border-slate-600 bg-slate-800 text-slate-300" : trackerStatus === "taken" ? "border-amber-300 bg-amber-400 text-slate-950" : "border-sky-300 bg-sky-400 text-slate-950";
               const trackerRowClasses = !isDraftTrackerModeActive ? "" : trackerStatus === "taken" ? "bg-amber-950/60 [&>td:not(:first-child)]:line-through [&>td:not(:first-child)]:decoration-1 [&>td:not(:first-child)]:decoration-amber-400" : trackerStatus === "mine" ? "bg-sky-900/70" : "";
+              const startsNewTier = tierRowsAreVisible && (index === 0 || sortedRankings[index - 1].tier !== player.tier);
               return (
-                <tr key={playerKey} className={trackerRowClasses}>
-                  {isDraftTrackerModeActive && (
-                    <td className="px-3 py-3">
-                      <button type="button" onClick={() => handleCycleDraftTrackerStatus(player, trackerStatus)} aria-label={`${player.playerName}: ${trackerStatusLabel}. Click to change status.`} className={`inline-flex min-w-28 cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors ${trackerStatusClasses}`}>
-                        <span aria-hidden="true" className="size-2 rounded-full bg-current" />
-                        {trackerStatusLabel}
-                      </button>
-                    </td>
+                <Fragment key={playerKey}>
+                  {startsNewTier && (
+                    <tr>
+                      <td colSpan={isDraftTrackerModeActive ? 8 : 7} className="bg-slate-800 px-3 py-1 text-sm font-bold uppercase tracking-wide text-sky-300">
+                        Tier {player.tier}
+                      </td>
+                    </tr>
                   )}
-                  <td className="text-left px-3 py-3 tabular-nums">{player.weightedScore.toFixed(2)}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex min-w-0 items-baseline gap-2">
-                      <span className="min-w-0 truncate" title={player.playerName}>
-                        {player.playerName}
+                  <tr className={trackerRowClasses}>
+                    {isDraftTrackerModeActive && (
+                      <td className="px-3 py-1">
+                        <button type="button" onClick={() => handleCycleDraftTrackerStatus(player, trackerStatus)} aria-label={`${player.playerName}: ${trackerStatusLabel}. Click to change status.`} className={`inline-flex min-w-28 cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors ${trackerStatusClasses}`}>
+                          <span aria-hidden="true" className="size-2 rounded-full bg-current" />
+                          {trackerStatusLabel}
+                        </button>
+                      </td>
+                    )}
+                    <td className="text-left px-3 py-1 tabular-nums">{player.weightedScore.toFixed(2)}</td>
+                    <td className="px-3 py-1">
+                      <div className="flex min-w-0 items-baseline gap-2">
+                        <span className="min-w-0 truncate" title={player.playerName}>
+                          {player.playerName}
+                        </span>
+                        {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
+                      </div>
+                    </td>
+                    <td className="px-3 py-1 tabular-nums" title={`${player.position} rank ${player.positionRank}`}>
+                      {player.position}
+                      {player.positionRank}
+                    </td>
+                    <td className="px-3 py-1 text-right tabular-nums">{player.myDraftCount}</td>
+                    <td className="px-3 py-1 text-right tabular-nums">{player.myAverageOverallPick === null ? "—" : player.myAverageOverallPick.toFixed(1)}</td>
+                    <td className="px-3 py-1 text-right tabular-nums">{player.averageOverallPick.toFixed(1)}</td>
+                    <td className="px-3 py-1 text-right tabular-nums">
+                      {(player.draftRate * 100).toFixed(0)}%
+                      <span className="ml-2 text-xs text-slate-500">
+                        ({player.timesDrafted}/{player.totalDrafts})
                       </span>
-                      {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">{player.position}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{player.myDraftCount}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{player.myAverageOverallPick === null ? "—" : player.myAverageOverallPick.toFixed(1)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{player.averageOverallPick.toFixed(1)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">
-                    {(player.draftRate * 100).toFixed(0)}%
-                    <span className="ml-2 text-xs text-slate-500">
-                      ({player.timesDrafted}/{player.totalDrafts})
-                    </span>
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
