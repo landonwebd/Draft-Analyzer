@@ -11,7 +11,7 @@ export async function GET() {
         "x-api-key": apiKey,
       },
       next: {
-        revalidate: 86400,
+        revalidate: 604800,
       },
     });
 
