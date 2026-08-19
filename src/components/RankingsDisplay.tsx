@@ -10,6 +10,8 @@ import { positionOptions } from "@/utils/positionOptions";
 import { createRankingsCsv } from "@/utils/createRankingsCsv";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 import { addRankingTiers } from "@/utils/addRankingTiers";
+import { createPlayerSlug } from "@/utils/createPlayerSlug";
+import Link from "next/link";
 import { Download, Bomb } from "lucide-react";
 
 export default function RankingsDisplay() {
@@ -335,6 +337,7 @@ export default function RankingsDisplay() {
           <tbody className="divide-y divide-slate-800">
             {sortedRankings.map((player, index) => {
               const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
+              const playerSlug = createPlayerSlug(playerKey);
               const trackerStatus = draftTrackerState[playerKey] ?? "available";
               const trackerStatusLabel = trackerStatus === "available" ? "Available" : trackerStatus === "taken" ? "Unavailable" : "Mine";
               const trackerStatusClasses = trackerStatus === "available" ? "border-slate-600 bg-slate-800 text-slate-300" : trackerStatus === "taken" ? "border-amber-300 bg-amber-400 text-slate-950" : "border-sky-300 bg-sky-400 text-slate-950";
@@ -361,9 +364,9 @@ export default function RankingsDisplay() {
                     <td className="text-left px-3 py-1 tabular-nums">{player.weightedScore.toFixed(2)}</td>
                     <td className="px-3 py-1">
                       <div className="flex min-w-0 items-baseline gap-2">
-                        <span className="min-w-0 truncate" title={player.playerName}>
+                        <Link href={`/players/${playerSlug}`} className="min-w-0 truncate text-sky-300 hover:text-sky-200 hover:underline" title={`View ${player.playerName}`}>
                           {player.playerName}
-                        </span>
+                        </Link>
                         {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
                       </div>
                     </td>

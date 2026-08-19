@@ -1,4 +1,4 @@
-import type { ImportedDraft, PlayerRanking, Position } from "@/types/draft";
+import type { ImportedDraft, PlayerRanking, Position, MeaningfulPass } from "@/types/draft";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 
 type PlayerAccumulator = {
@@ -16,6 +16,7 @@ type PersonalPassStats = {
   timesPassed: number;
   personalPassPenalty: number;
   meaningfulPassCount: number;
+  meaningfulPasses: MeaningfulPass[];
 };
 
 function calculatePersonalPassStats(playerName: string, position: Position, nflTeam: string, drafts: ImportedDraft[], playersByName: Map<string, PlayerAccumulator>, myDraftCount: number): PersonalPassStats {
@@ -24,6 +25,7 @@ function calculatePersonalPassStats(playerName: string, position: Position, nflT
   let totalPassSeverity = 0;
   let meaningfulPassCount = 0;
   let opportunityLeagueSizeTotal = 0;
+  const meaningfulPasses: MeaningfulPass[] = [];
   const playerKey = createPlayerKey(playerName, position, nflTeam);
 
   for (const draft of drafts) {
@@ -53,6 +55,14 @@ function calculatePersonalPassStats(playerName: string, position: Position, nflT
         const passSeverity = Math.min(leagueSize, Math.max(0, selectedPlayerAverage - passedPlayerAverage));
         if (passSeverity > 0) {
           meaningfulPassCount += 1;
+          meaningfulPasses.push({
+            draftId: draft.id,
+            draftName: draft.name,
+            leagueSize,
+            selectedPick: userSelectedPick,
+            passedPlayerPick: playerPick,
+            passSeverity,
+          });
         }
         totalPassSeverity += passSeverity;
       }
@@ -69,6 +79,7 @@ function calculatePersonalPassStats(playerName: string, position: Position, nflT
     timesPassed,
     meaningfulPassCount,
     personalPassPenalty,
+    meaningfulPasses,
   };
 }
 
@@ -113,7 +124,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
     const myAverageOverallPick = myDraftCount > 0 ? player.myTotalOverallPick / myDraftCount : null;
     const personalWeight = myDraftCount > 0 ? myDraftCount / (myDraftCount + 0.5) : 0;
     const preferredAverageOverallPick = myAverageOverallPick === null ? averageOverallPick : personalWeight * myAverageOverallPick + (1 - personalWeight) * averageOverallPick;
-    const { passOpportunityCount, timesPassed, meaningfulPassCount, personalPassPenalty } = calculatePersonalPassStats(player.playerName, player.position, player.nflTeam, drafts, playersByName, myDraftCount);
+    const { passOpportunityCount, timesPassed, meaningfulPassCount, meaningfulPasses, personalPassPenalty } = calculatePersonalPassStats(player.playerName, player.position, player.nflTeam, drafts, playersByName, myDraftCount);
     let weightedPickTotal = preferredAverageOverallPick * timesDrafted;
 
     for (const draft of drafts) {
@@ -142,6 +153,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
       passOpportunityCount,
       timesPassed,
       meaningfulPassCount,
+      meaningfulPasses,
       personalPassPenalty,
     };
   });

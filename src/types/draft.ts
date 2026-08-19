@@ -45,6 +45,7 @@ export type PlayerRanking = {
   passOpportunityCount: number;
   timesPassed: number;
   meaningfulPassCount: number;
+  meaningfulPasses: MeaningfulPass[];
   personalPassPenalty: number;
 };
 
@@ -64,4 +65,13 @@ export type PendingDraft = {
   picks: DraftPick[];
   selectedTeam: string;
   importError: string;
+};
+
+export type MeaningfulPass = {
+  draftId: string;
+  draftName: string;
+  leagueSize: number;
+  selectedPick: DraftPick;
+  passedPlayerPick: DraftPick;
+  passSeverity: number;
 };
