@@ -15,9 +15,10 @@ import { ArrowLeftRight, ClipboardList, MoveLeft, ArrowRight, Info, ChartColumn,
 
 type PlayerAnalysisProps = {
   playerSlug: string;
+  fromDraft?: string;
 };
 
-export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
+export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysisProps) {
   const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const { overrides, hasLoadedOverrides, updateOverride } = usePlayerRankingOverrides();
@@ -84,8 +85,9 @@ export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
 
   return (
     <div>
-      <Link href="/rankings" className="mb-6 inline-flex gap-2 text-sky-400 hover:text-sky-300">
-        <MoveLeft /> Back to Draft Rankings
+      <Link href={fromDraft ? `/drafts/${fromDraft}` : "/rankings"} className="mb-6 inline-flex gap-2 text-sky-400 hover:text-sky-300">
+        <MoveLeft />
+        {fromDraft ? "Back to Draft" : "Back to Draft Rankings"}
       </Link>
       <header className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:p-8">
         <div className="absolute -top-24 -right-24 size-64 rounded-full bg-sky-500/10 blur-3xl" />
