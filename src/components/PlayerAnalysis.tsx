@@ -8,6 +8,8 @@ import { createPlayerKey } from "@/utils/createPlayerKey";
 import { createPlayerSlug } from "@/utils/createPlayerSlug";
 import StatCard from "@/components/StatCard";
 import { getPositionColor } from "@/utils/positionStyles";
+import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
+import ManualAdpSlider from "@/components/ManualAdpSlider";
 import Link from "next/link";
 import { ArrowLeftRight, ClipboardList, MoveLeft, ArrowRight, Info, ChartColumn, Target, Users } from "lucide-react";
 
@@ -18,14 +20,13 @@ type PlayerAnalysisProps = {
 export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
   const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const { overrides, hasLoadedOverrides, updateOverride } = usePlayerRankingOverrides();
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       try {
         const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-
         if (storedValue) {
           const parsedValue: unknown = JSON.parse(storedValue);
-
           if (Array.isArray(parsedValue)) {
             setDrafts(parsedValue as ImportedDraft[]);
           }
@@ -36,20 +37,18 @@ export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
         setHasLoaded(true);
       }
     }, 0);
-
     return () => {
       window.clearTimeout(timeoutId);
     };
   }, []);
-  if (!hasLoaded) {
+
+  if (!hasLoaded || !hasLoadedOverrides) {
     return <p>Loading player analysis...</p>;
   }
 
-  const rankings = buildPlayerRankings(drafts);
-
+  const rankings = buildPlayerRankings(drafts, overrides);
   const player = rankings.find((ranking) => {
     const rankingPlayerKey = createPlayerKey(ranking.playerName, ranking.position, ranking.nflTeam);
-
     return createPlayerSlug(rankingPlayerKey) === playerSlug;
   });
 
@@ -57,6 +56,11 @@ export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
     return <p className="text-red-300">Player not found.</p>;
   }
 
+  const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
+  const currentOverride = overrides[playerKey] ?? {
+    manualAdpAdjustment: 0,
+    isExcluded: false,
+  };
   const myDraftAppearances = drafts.flatMap((draft) => {
     const matchingPick = draft.picks.find((pick) => {
       const pickPlayerKey = createPlayerKey(pick.playerName, pick.position, pick.nflTeam);
@@ -74,9 +78,9 @@ export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
       },
     ];
   });
-
-  const adpDifference = player.weightedScore - player.averageOverallPick;
+  const adpDifference = player.finalPersonalizedAdp - player.averageOverallPick;
   const adpComparison = Math.abs(adpDifference) < 0.01 ? "Matches overall ADP" : `${Math.abs(adpDifference).toFixed(2)} picks ${adpDifference > 0 ? "later" : "earlier"} than overall ADP`;
+  const minimumAdpWasApplied = player.weightedScore + player.manualAdpAdjustment < 1;
 
   return (
     <div>
@@ -90,16 +94,57 @@ export default function PlayerAnalysis({ playerSlug }: PlayerAnalysisProps) {
           <div>
             <h1 className="text-4xl font-bold tracking-tight">{player.playerName}</h1>
             <p className="mt-2 text-slate-300">
-              {player.position}
-              {player.positionRank}
+              {player.isExcluded ? "Excluded from rankings" : `${player.position}${player.positionRank}`}
               <span className="mx-2 text-slate-600">•</span>
               {player.nflTeam}
             </p>
           </div>
         </div>
       </header>
+      <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+        <div>
+          <h2 className="font-bold">Manual Ranking Override</h2>
+          <p className="mt-1 text-sm text-slate-400">Move this player in your rankings.</p>
+        </div>
+        <ManualAdpSlider
+          key={playerKey}
+          initialValue={currentOverride.manualAdpAdjustment}
+          onCommit={(value) =>
+            updateOverride(playerKey, {
+              ...currentOverride,
+              manualAdpAdjustment: value,
+            })
+          }
+        />
+        {minimumAdpWasApplied && (
+          <p role="status" className="mt-3 text-sm font-medium text-amber-300">
+            Minimum Personalized ADP of 1 applied.
+          </p>
+        )}
+        <div className="mt-6 flex items-center justify-between gap-6 border-t border-slate-800 pt-6">
+          <div>
+            <h3 className="font-semibold text-slate-200">Exclude from rankings</h3>
+            <p className="mt-1 text-sm text-slate-400">Hide this player from rankings, tiers, exports, and Best Available.</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={currentOverride.isExcluded}
+            aria-label={`Exclude ${player.playerName} from rankings`}
+            onClick={() =>
+              updateOverride(playerKey, {
+                ...currentOverride,
+                isExcluded: !currentOverride.isExcluded,
+              })
+            }
+            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors ${currentOverride.isExcluded ? "border-red-500 bg-red-600" : "border-slate-600 bg-slate-700"}`}
+          >
+            <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-sm transition-transform ${currentOverride.isExcluded ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </div>
+      </section>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Personalized ADP" value={player.weightedScore.toFixed(2)} description={adpComparison} featured icon={<Target size={18} />} />
+        <StatCard label="Personalized ADP" value={player.finalPersonalizedAdp.toFixed(2)} description={adpComparison} featured icon={<Target size={18} />} />
         <StatCard label="My Draft Count" value={player.myDraftCount} description={`${(player.myDraftRate * 100).toFixed(1)}% of ${player.totalDrafts} drafts`} icon={<Users size={18} />} />
         <StatCard label="Overall Average Pick" value={player.averageOverallPick.toFixed(2)} description={`Market draft rate: ${(player.draftRate * 100).toFixed(1)}%`} icon={<ChartColumn size={18} />} />
         <StatCard label="Meaningful Passes" value={player.meaningfulPassCount} description={`${player.passOpportunityCount} total pass opportunities`} icon={<ArrowLeftRight size={18} />} />

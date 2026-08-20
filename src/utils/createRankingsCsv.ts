@@ -3,7 +3,9 @@ import type { PlayerRanking } from "@/types/draft";
 
 export function createRankingsCsv(rankings: PlayerRanking[]): string {
   const rows = rankings.map((player) => ({
-    "Personalized ADP": player.weightedScore.toFixed(2),
+    "Calculated Personalized ADP": player.weightedScore.toFixed(2),
+    "Manual ADP Adjustment": player.manualAdpAdjustment.toFixed(2),
+    "Personalized ADP": player.finalPersonalizedAdp.toFixed(2),
     Player: player.playerName,
     Position: player.position,
     "NFL Team": player.nflTeam,

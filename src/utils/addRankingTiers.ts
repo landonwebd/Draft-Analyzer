@@ -11,7 +11,7 @@ const TIER_BREAK_GRACE_PERIOD = 3;
 const HARD_MAX_PLAYERS_PER_TIER = SOFT_MAX_PLAYERS_PER_TIER + TIER_BREAK_GRACE_PERIOD;
 
 export function addRankingTiers(players: PlayerRanking[]): TieredPlayerRanking[] {
-  const playersByPersonalizedAdp = [...players].sort((firstPlayer, secondPlayer) => firstPlayer.weightedScore - secondPlayer.weightedScore);
+  const playersByPersonalizedAdp = [...players].sort((firstPlayer, secondPlayer) => firstPlayer.finalPersonalizedAdp - secondPlayer.finalPersonalizedAdp);
 
   let currentTier = 1;
   let playersInCurrentTier = 0;
@@ -19,7 +19,7 @@ export function addRankingTiers(players: PlayerRanking[]): TieredPlayerRanking[]
   return playersByPersonalizedAdp.map((player, index) => {
     if (index > 0) {
       const previousPlayer = playersByPersonalizedAdp[index - 1];
-      const scoreGap = player.weightedScore - previousPlayer.weightedScore;
+      const scoreGap = player.finalPersonalizedAdp - previousPlayer.finalPersonalizedAdp;
       const currentTierGapThreshold = INITIAL_TIER_GAP_THRESHOLD + (currentTier - 1) * TIER_GAP_THRESHOLD_INCREASE;
       const hasNaturalTierBreak = scoreGap >= currentTierGapThreshold;
       const hasReachedHardMaximum = playersInCurrentTier >= HARD_MAX_PLAYERS_PER_TIER;

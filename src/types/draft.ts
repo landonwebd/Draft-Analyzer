@@ -47,6 +47,9 @@ export type PlayerRanking = {
   meaningfulPassCount: number;
   meaningfulPasses: MeaningfulPass[];
   personalPassPenalty: number;
+  manualAdpAdjustment: number;
+  finalPersonalizedAdp: number;
+  isExcluded: boolean;
 };
 
 export type DraftTrackerStatus = "available" | "mine" | "taken";
@@ -56,7 +59,7 @@ export type DraftTrackerSession = {
   playerStatuses: DraftTrackerState;
 };
 
-export type RankingSortField = "rank" | "weightedScore" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
+export type RankingSortField = "rank" | "finalPersonalizedAdp" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
 export type SortDirection = "ascending" | "descending";
 
 export type PendingDraft = {
@@ -75,3 +78,10 @@ export type MeaningfulPass = {
   passedPlayerPick: DraftPick;
   passSeverity: number;
 };
+
+export type PlayerRankingOverride = {
+  manualAdpAdjustment: number;
+  isExcluded: boolean;
+};
+
+export type PlayerRankingOverrides = Record<string, PlayerRankingOverride>;

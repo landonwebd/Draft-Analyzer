@@ -1,4 +1,4 @@
-import type { ImportedDraft, PlayerRanking, Position, MeaningfulPass } from "@/types/draft";
+import type { ImportedDraft, PlayerRanking, Position, MeaningfulPass, PlayerRankingOverrides } from "@/types/draft";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 
 type PlayerAccumulator = {
@@ -83,7 +83,7 @@ function calculatePersonalPassStats(playerName: string, position: Position, nflT
   };
 }
 
-export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
+export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRankingOverrides = {}): PlayerRanking[] {
   if (drafts.length === 0) {
     return [];
   }
@@ -115,6 +115,10 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
     }
   }
   const rankings = Array.from(playersByName.values()).map((player) => {
+    const playerKey = createPlayerKey(player.playerName, player.position, player.nflTeam);
+    const playerOverride = overrides[playerKey];
+    const manualAdpAdjustment = playerOverride?.manualAdpAdjustment ?? 0;
+    const isExcluded = playerOverride?.isExcluded ?? false;
     const totalDrafts = drafts.length;
     const timesDrafted = player.draftIds.size;
     const draftRate = timesDrafted / totalDrafts;
@@ -137,6 +141,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
     }
 
     const weightedScore = weightedPickTotal / totalDrafts + personalPassPenalty;
+    const finalPersonalizedAdp = Math.max(1, weightedScore + manualAdpAdjustment);
 
     return {
       playerName: player.playerName,
@@ -155,10 +160,13 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
       meaningfulPassCount,
       meaningfulPasses,
       personalPassPenalty,
+      manualAdpAdjustment,
+      finalPersonalizedAdp,
+      isExcluded,
     };
   });
 
-  const sortedRankings = rankings.sort((firstPlayer, secondPlayer) => firstPlayer.weightedScore - secondPlayer.weightedScore);
+  const sortedRankings = rankings.sort((firstPlayer, secondPlayer) => firstPlayer.finalPersonalizedAdp - secondPlayer.finalPersonalizedAdp);
   const positionCounts: Record<Position, number> = {
     QB: 0,
     RB: 0,
@@ -168,11 +176,23 @@ export function buildPlayerRankings(drafts: ImportedDraft[]): PlayerRanking[] {
     DST: 0,
   };
 
-  return sortedRankings.map((player, index) => {
+  let visibleRank = 0;
+
+  return sortedRankings.map((player) => {
+    if (player.isExcluded) {
+      return {
+        ...player,
+        rank: 0,
+        positionRank: 0,
+      };
+    }
+
+    visibleRank += 1;
     positionCounts[player.position] += 1;
+
     return {
       ...player,
-      rank: index + 1,
+      rank: visibleRank,
       positionRank: positionCounts[player.position],
     };
   });
