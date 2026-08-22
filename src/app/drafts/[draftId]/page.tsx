@@ -1,30 +1,19 @@
 import DraftAnalysis from "@/components/DraftAnalysis";
-import Link from "next/link";
-import { MoveLeft } from "lucide-react";
+import HistoryBackButton from "@/components/HistoryBackButton";
 
 type DraftPageProps = {
   params: Promise<{
     draftId: string;
   }>;
-  searchParams: Promise<{ fromPlayer?: string }>;
 };
 
-export default async function DraftPage({ params, searchParams }: DraftPageProps) {
+export default async function DraftPage({ params }: DraftPageProps) {
   const { draftId } = await params;
-  const { fromPlayer } = await searchParams;
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-24 text-white">
       <div className="mx-auto max-w-7xl">
-        {fromPlayer ? (
-          <Link href={`/players/${fromPlayer}`} className="mb-6 inline-flex gap-2 text-sky-400 hover:text-sky-300">
-            <MoveLeft /> Back to Player
-          </Link>
-        ) : (
-          <Link href="/" className="mb-6 inline-flex gap-2 text-sky-400 hover:text-sky-300">
-            <MoveLeft /> Back to Imported Drafts
-          </Link>
-        )}
+        <HistoryBackButton fallbackHref="/" label="Back" />
         <DraftAnalysis draftId={draftId} />
       </div>
     </main>

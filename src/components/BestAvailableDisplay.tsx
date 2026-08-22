@@ -7,10 +7,10 @@ import { useState } from "react";
 type BestAvailableDisplayProps = {
   players: PlayerRanking[];
   selectedPosition: PositionFilter;
-  draftId: string;
+  poolSlug: string;
 };
 
-export default function BestAvailableDisplay({ players, selectedPosition, draftId }: BestAvailableDisplayProps) {
+export default function BestAvailableDisplay({ players, selectedPosition, poolSlug }: BestAvailableDisplayProps) {
   const [showAllPlayers, setShowAllPlayers] = useState(false);
   const visiblePlayers = showAllPlayers ? players : players.slice(0, 10);
   return (
@@ -40,7 +40,15 @@ export default function BestAvailableDisplay({ players, selectedPosition, draftI
                     <tr key={`${player.playerName}-${player.position}-${player.nflTeam}`}>
                       <td className="px-3 py-3">{player.finalPersonalizedAdp.toFixed(2)}</td>
                       <td className="px-3 py-3">
-                        <Link href={`/players/${playerSlug}?fromDraft=${encodeURIComponent(draftId)}`} className="font-medium text-sky-300 hover:text-sky-200 hover:underline">
+                        <Link
+                          href={{
+                            pathname: `/players/${playerSlug}`,
+                            query: {
+                              pool: poolSlug,
+                            },
+                          }}
+                          className="font-medium text-sky-300 hover:text-sky-200 hover:underline"
+                        >
                           {player.playerName}
                         </Link>
                       </td>

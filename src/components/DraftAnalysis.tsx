@@ -11,8 +11,10 @@ import { convertDraftPicksToPlayers } from "@/utils/draftTransforms";
 import { positionOptions } from "@/utils/positionOptions";
 import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { getBestAvailablePlayers } from "@/utils/getBestAvailablePlayers";
+import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
 import BestAvailableDisplay from "@/components/BestAvailableDisplay";
+import { useDraftPools } from "@/hooks/useDraftPools";
 
 type DraftAnalysisProps = {
   draftId: string;
@@ -27,8 +29,18 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
   const [activeDraftView, setActiveDraftView] = useState<"results" | "bestAvailable">("results");
   const [selectedBestAvailablePosition, setSelectedBestAvailablePosition] = useState<PositionFilter>("ALL");
   const [bestAvailableSearchTerm, setBestAvailableSearchTerm] = useState("");
+  const { draftPools, hasLoadedDraftPools } = useDraftPools();
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
-  const rankings = useMemo(() => buildPlayerRankings(drafts, overrides), [drafts, overrides]);
+  const draftPoolOptions = [
+    {
+      value: "",
+      label: "Unassigned",
+    },
+    ...draftPools.map((pool) => ({
+      value: pool.id,
+      label: pool.name,
+    })),
+  ];
   const filtersAreClear = selectedPosition === "ALL" && searchTerm === "" && selectedFantasyTeamFilter === "ALL";
   const bestAvailableFiltersAreClear = selectedBestAvailablePosition === "ALL" && bestAvailableSearchTerm === "";
   useEffect(() => {
@@ -56,6 +68,8 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
   }, []);
 
   const draft = drafts.find((storedDraft) => storedDraft.id === draftId) ?? null;
+  const draftPoolDrafts = useMemo(() => (draft ? drafts.filter((storedDraft) => (draft.poolId ? storedDraft.poolId === draft.poolId : storedDraft.poolId === undefined)) : []), [drafts, draft]);
+  const rankings = useMemo(() => buildPlayerRankings(draftPoolDrafts, overrides), [draftPoolDrafts, overrides]);
   const bestAvailablePlayers = useMemo(() => (draft ? getBestAvailablePlayers(rankings, draft.picks) : []), [rankings, draft]);
   const filteredBestAvailablePlayers = bestAvailablePlayers.filter((player) => {
     const matchesPosition = selectedBestAvailablePosition === "ALL" || player.position === selectedBestAvailablePosition;
@@ -90,7 +104,21 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
     setBestAvailableSearchTerm("");
   }
 
-  if (!hasLoaded || !hasLoadedOverrides) {
+  function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const selectedPoolId = event.target.value === "" ? undefined : event.target.value;
+    const updatedDrafts = drafts.map((storedDraft) =>
+      storedDraft.id === draftId
+        ? {
+            ...storedDraft,
+            poolId: selectedPoolId,
+          }
+        : storedDraft,
+    );
+    setDrafts(updatedDrafts);
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(updatedDrafts));
+  }
+
+  if (!hasLoaded || !hasLoadedOverrides || !hasLoadedDraftPools) {
     return <p className="mt-4 text-slate-300">Loading draft...</p>;
   }
 
@@ -98,6 +126,13 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
     return <p className="mt-4 text-red-300">Draft not found.</p>;
   }
 
+  let draftPoolSlug = "unassigned";
+  if (draft.poolId) {
+    const assignedDraftPool = draftPools.find((draftPool) => draftPool.id === draft.poolId);
+    if (assignedDraftPool) {
+      draftPoolSlug = createDraftPoolSlug(assignedDraftPool.name);
+    }
+  }
   const fantasyTeams = [...new Set(draft.picks.map((pick) => pick.fantasyTeam))];
   const fantasyTeamOptions = [
     { value: "ALL", label: "Show all fantasy teams" },
@@ -123,6 +158,10 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
         Your fantasy team: <span className="font-bold text-white">{draft.myFantasyTeam}</span>
       </p>
       <p className="mt-1 text-slate-400">{draft.picks.length} total draft picks</p>
+      <div className="mt-4 max-w-sm">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Pool</p>
+        <FilterSelect id={`draftPool-${draft.id}`} label={`Change the draft pool for ${draft.name}`} value={draft.poolId ?? ""} options={draftPoolOptions} onChange={handleDraftPoolChange} />
+      </div>
       <div role="tablist" aria-label="Draft analysis views" className="mt-8 flex border-b border-slate-800">
         <button type="button" role="tab" id="draft-results-tab" aria-selected={activeDraftView === "results"} aria-controls="draft-results-panel" onClick={() => setActiveDraftView("results")} className={`cursor-pointer border-b-2 px-5 py-3 font-semibold transition-colors ${activeDraftView === "results" ? "border-sky-400 text-sky-300" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
           Draft Results
@@ -146,7 +185,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
           <StatCard label="My Roster Size" value={myRosterSize} />
         </div>
         <PositionBreakdown players={breakdownPicks} />
-        <PlayerList players={filteredPlayers} />
+        <PlayerList players={filteredPlayers} poolSlug={draftPoolSlug} />
       </div>
       <div role="tabpanel" id="best-available-panel" aria-labelledby="best-available-tab" hidden={activeDraftView !== "bestAvailable"}>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -156,7 +195,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
             Clear Filters
           </button>
         </div>
-        <BestAvailableDisplay players={filteredBestAvailablePlayers} selectedPosition={selectedBestAvailablePosition} draftId={draft.id} />
+        <BestAvailableDisplay players={filteredBestAvailablePlayers} selectedPosition={selectedBestAvailablePosition} poolSlug={draftPoolSlug} />
       </div>
     </section>
   );

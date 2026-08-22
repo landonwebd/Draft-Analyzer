@@ -9,19 +9,26 @@ import { createPlayerSlug } from "@/utils/createPlayerSlug";
 import StatCard from "@/components/StatCard";
 import { getPositionColor } from "@/utils/positionStyles";
 import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
+import { useDraftPools } from "@/hooks/useDraftPools";
+import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import ManualAdpSlider from "@/components/ManualAdpSlider";
+import HistoryBackButton from "@/components/HistoryBackButton";
+import FilterSelect from "@/components/FilterSelect";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeftRight, ClipboardList, MoveLeft, ArrowRight, Info, ChartColumn, Target, Users } from "lucide-react";
+import { ArrowLeftRight, ClipboardList, ArrowRight, Info, ChartColumn, Target, Users } from "lucide-react";
 
 type PlayerAnalysisProps = {
   playerSlug: string;
-  fromDraft?: string;
+  poolSlug: string;
 };
 
-export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysisProps) {
+export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisProps) {
   const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const { overrides, hasLoadedOverrides, updateOverride } = usePlayerRankingOverrides();
+  const { draftPools, hasLoadedDraftPools } = useDraftPools();
+  const router = useRouter();
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       try {
@@ -42,12 +49,52 @@ export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysis
       window.clearTimeout(timeoutId);
     };
   }, []);
-
-  if (!hasLoaded || !hasLoadedOverrides) {
+  if (!hasLoaded || !hasLoadedOverrides || !hasLoadedDraftPools) {
     return <p>Loading player analysis...</p>;
   }
-
-  const rankings = buildPlayerRankings(drafts, overrides);
+  function draftContainsPlayer(draft: ImportedDraft): boolean {
+    return draft.picks.some((pick) => {
+      const pickPlayerKey = createPlayerKey(pick.playerName, pick.position, pick.nflTeam);
+      return createPlayerSlug(pickPlayerKey) === playerSlug;
+    });
+  }
+  const selectedDraftPool = draftPools.find((draftPool) => createDraftPoolSlug(draftPool.name) === poolSlug);
+  const unassignedDrafts = drafts.filter((draft) => draft.poolId === undefined);
+  const playerAppearsInUnassigned = unassignedDrafts.some(draftContainsPlayer);
+  const playerAppearsInSelectedPool = selectedDraftPool ? drafts.some((draft) => draft.poolId === selectedDraftPool.id && draftContainsPlayer(draft)) : false;
+  let activePoolSlug = "all";
+  if (poolSlug === "unassigned" && playerAppearsInUnassigned) {
+    activePoolSlug = "unassigned";
+  } else if (selectedDraftPool && playerAppearsInSelectedPool) {
+    activePoolSlug = createDraftPoolSlug(selectedDraftPool.name);
+  }
+  const playerPoolOptions = [
+    {
+      value: "all",
+      label: `All Drafts (${drafts.length})`,
+    },
+    ...(playerAppearsInUnassigned
+      ? [
+          {
+            value: "unassigned",
+            label: `Unassigned (${unassignedDrafts.length})`,
+          },
+        ]
+      : []),
+    ...draftPools
+      .filter((draftPool) => drafts.some((draft) => draft.poolId === draftPool.id && draftContainsPlayer(draft)))
+      .map((draftPool) => ({
+        value: createDraftPoolSlug(draftPool.name),
+        label: `${draftPool.name} (${drafts.filter((draft) => draft.poolId === draftPool.id).length})`,
+      })),
+  ];
+  let poolDrafts = drafts;
+  if (activePoolSlug === "unassigned") {
+    poolDrafts = drafts.filter((draft) => draft.poolId === undefined);
+  } else if (activePoolSlug !== "all" && selectedDraftPool) {
+    poolDrafts = drafts.filter((draft) => draft.poolId === selectedDraftPool.id);
+  }
+  const rankings = buildPlayerRankings(poolDrafts, overrides);
   const player = rankings.find((ranking) => {
     const rankingPlayerKey = createPlayerKey(ranking.playerName, ranking.position, ranking.nflTeam);
     return createPlayerSlug(rankingPlayerKey) === playerSlug;
@@ -62,7 +109,7 @@ export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysis
     manualAdpAdjustment: 0,
     isExcluded: false,
   };
-  const myDraftAppearances = drafts.flatMap((draft) => {
+  const myDraftAppearances = poolDrafts.flatMap((draft) => {
     const matchingPick = draft.picks.find((pick) => {
       const pickPlayerKey = createPlayerKey(pick.playerName, pick.position, pick.nflTeam);
       const pickPlayerSlug = createPlayerSlug(pickPlayerKey);
@@ -83,12 +130,17 @@ export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysis
   const adpComparison = Math.abs(adpDifference) < 0.01 ? "Matches overall ADP" : `${Math.abs(adpDifference).toFixed(2)} picks ${adpDifference > 0 ? "later" : "earlier"} than overall ADP`;
   const minimumAdpWasApplied = player.weightedScore + player.manualAdpAdjustment < 1;
 
+  function handlePlayerPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const nextPoolSlug = event.target.value;
+    const nextUrl = nextPoolSlug === "all" ? `/players/${playerSlug}` : `/players/${playerSlug}?pool=${encodeURIComponent(nextPoolSlug)}`;
+    router.replace(nextUrl, {
+      scroll: false,
+    });
+  }
+
   return (
     <div>
-      <Link href={fromDraft ? `/drafts/${fromDraft}` : "/rankings"} className="mb-6 inline-flex gap-2 text-sky-400 hover:text-sky-300">
-        <MoveLeft />
-        {fromDraft ? "Back to Draft" : "Back to Draft Rankings"}
-      </Link>
+      <HistoryBackButton fallbackHref="/rankings" label="Back" />
       <header className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:p-8">
         <div className="absolute -top-24 -right-24 size-64 rounded-full bg-sky-500/10 blur-3xl" />
         <div className="relative flex items-center gap-5">
@@ -100,6 +152,10 @@ export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysis
               <span className="mx-2 text-slate-600">•</span>
               {player.nflTeam}
             </p>
+            <div className="mt-5 max-w-sm">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Ranking Pool</p>
+              <FilterSelect id="playerRankingPool" label={`Choose a ranking pool for ${player.playerName}`} value={activePoolSlug} options={playerPoolOptions} onChange={handlePlayerPoolChange} />
+            </div>
           </div>
         </div>
       </header>
@@ -178,7 +234,7 @@ export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysis
             {myDraftAppearances.map(({ draft, pick }) => (
               <article key={draft.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-5">
                 <h3 className="font-bold">
-                  <Link href={`/drafts/${draft.id}?fromPlayer=${playerSlug}`} className="text-sky-300 hover:text-sky-200 hover:underline">
+                  <Link href={`/drafts/${draft.id}`} className="text-sky-300 hover:text-sky-200 hover:underline">
                     {draft.name}
                   </Link>
                 </h3>
@@ -213,15 +269,23 @@ export default function PlayerAnalysis({ playerSlug, fromDraft }: PlayerAnalysis
               return (
                 <article key={`${meaningfulPass.draftId}-${meaningfulPass.selectedPick.overall}`} className="rounded-xl border border-slate-800 bg-slate-950/60 p-5">
                   <div className="flex items-center justify-between gap-4">
-                    <Link href={`/drafts/${meaningfulPass.draftId}?fromPlayer=${playerSlug}`} className="font-bold text-sky-300 hover:text-sky-200 hover:underline">
-                      {meaningfulPass.draftName}
+                    <Link
+                      href={{
+                        pathname: `/players/${selectedPlayerSlug}`,
+                        query: {
+                          pool: poolSlug,
+                        },
+                      }}
+                      className="mt-2 block font-bold text-white hover:text-sky-300"
+                    >
+                      {meaningfulPass.selectedPick.playerName}
                     </Link>
                     <span className="text-xs text-slate-500">{meaningfulPass.leagueSize} teams</span>
                   </div>
                   <div className="mt-5 grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
                     <div>
                       <p className="text-xs font-bold tracking-wide text-emerald-400 uppercase">You selected</p>
-                      <Link href={`/players/${selectedPlayerSlug}`} className="mt-2 block font-bold text-white hover:text-sky-300">
+                      <Link href={`/drafts/${meaningfulPass.draftId}`} className="font-bold text-sky-300 hover:text-sky-200 hover:underline">
                         {meaningfulPass.selectedPick.playerName}
                       </Link>
                       <p className="mt-1 text-sm text-slate-400">

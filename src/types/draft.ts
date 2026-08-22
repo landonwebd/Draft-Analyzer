@@ -6,6 +6,7 @@ export type Player = {
   id: number;
   name: string;
   position: Position;
+  nflTeam: string;
   pick: string;
   fantasyTeam: string;
 };
@@ -26,6 +27,7 @@ export type ImportedDraft = {
   importedAt: string;
   myFantasyTeam: string;
   picks: DraftPick[];
+  poolId?: string;
 };
 
 export type PlayerRanking = {
@@ -67,6 +69,7 @@ export type PendingDraft = {
   fileName: string;
   picks: DraftPick[];
   selectedTeam: string;
+  selectedPoolId: string;
   importError: string;
 };
 
@@ -85,3 +88,8 @@ export type PlayerRankingOverride = {
 };
 
 export type PlayerRankingOverrides = Record<string, PlayerRankingOverride>;
+
+export type DraftPool = {
+  id: string;
+  name: string;
+};

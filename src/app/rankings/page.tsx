@@ -2,7 +2,14 @@ import RankingsDisplay from "@/components/RankingsDisplay";
 import Link from "next/link";
 import { MoveLeft } from "lucide-react";
 
-export default function RankingsPage() {
+type RankingsPageProps = {
+  searchParams: Promise<{
+    pool?: string;
+  }>;
+};
+
+export default async function RankingsPage({ searchParams }: RankingsPageProps) {
+  const { pool } = await searchParams;
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-24 text-white">
       <div className="mx-auto max-w-7xl">
@@ -10,7 +17,7 @@ export default function RankingsPage() {
           <MoveLeft /> Back to imported drafts
         </Link>
         <h1 className="text-4xl font-bold">Draft Rankings</h1>
-        <RankingsDisplay />
+        <RankingsDisplay initialPoolSlug={pool ?? "all"} />
       </div>
     </main>
   );

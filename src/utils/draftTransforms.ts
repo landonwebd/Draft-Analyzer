@@ -5,6 +5,7 @@ export function convertDraftPicksToPlayers(picks: DraftPick[]): Player[] {
     id: pick.overall,
     name: pick.playerName,
     position: pick.position,
+    nflTeam: pick.nflTeam,
     pick: pick.pick,
     fantasyTeam: pick.fantasyTeam,
   }));

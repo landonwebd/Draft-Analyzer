@@ -11,11 +11,18 @@ import { createRankingsCsv } from "@/utils/createRankingsCsv";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 import { addRankingTiers } from "@/utils/addRankingTiers";
 import { createPlayerSlug } from "@/utils/createPlayerSlug";
+import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
+import { useDraftPools } from "@/hooks/useDraftPools";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Download, Bomb, SlidersHorizontal } from "lucide-react";
 
-export default function RankingsDisplay() {
+type RankingsDisplayProps = {
+  initialPoolSlug: string;
+};
+
+export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProps) {
   const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<PositionFilter>("ALL");
   const [sortField, setSortField] = useState<RankingSortField>("finalPersonalizedAdp");
@@ -27,8 +34,22 @@ export default function RankingsDisplay() {
   const [showDraftTrackerExitConfirmation, setShowDraftTrackerExitConfirmation] = useState(false);
   const [hasLoadedDraftTrackerSession, setHasLoadedDraftTrackerSession] = useState(false);
   const [activeRankingView, setActiveRankingView] = useState<"rankings" | "excluded">("rankings");
+  const [selectedDraftPoolSlug, setSelectedDraftPoolSlug] = useState(initialPoolSlug);
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
-  const rankings = useMemo(() => buildPlayerRankings(drafts, overrides), [drafts, overrides]);
+  const { draftPools, hasLoadedDraftPools } = useDraftPools();
+  const router = useRouter();
+  const selectedDraftPool = draftPools.find((draftPool) => createDraftPoolSlug(draftPool.name) === selectedDraftPoolSlug);
+  const activePoolSlug = selectedDraftPoolSlug === "all" || selectedDraftPoolSlug === "unassigned" || selectedDraftPool ? selectedDraftPoolSlug : "all";
+  const poolFilteredDrafts = useMemo(() => {
+    if (activePoolSlug === "all") {
+      return drafts;
+    }
+    if (activePoolSlug === "unassigned") {
+      return drafts.filter((draft) => draft.poolId === undefined);
+    }
+    return drafts.filter((draft) => draft.poolId === selectedDraftPool?.id);
+  }, [drafts, activePoolSlug, selectedDraftPool]);
+  const rankings = useMemo(() => buildPlayerRankings(poolFilteredDrafts, overrides), [poolFilteredDrafts, overrides]);
   const visibleRankings = rankings.filter((player) => !player.isExcluded);
   const excludedRankings = rankings.filter((player) => player.isExcluded);
   const hasDraftTrackerProgress = Object.keys(draftTrackerState).length > 0;
@@ -65,6 +86,20 @@ export default function RankingsDisplay() {
     } satisfies Record<DraftTrackerStatus, number>,
   );
   const tierRowsAreVisible = sortField === "finalPersonalizedAdp" && sortDirection === "ascending";
+  const draftPoolOptions = [
+    {
+      value: "all",
+      label: `All Drafts (${drafts.length})`,
+    },
+    {
+      value: "unassigned",
+      label: `Unassigned (${drafts.filter((draft) => !draft.poolId).length})`,
+    },
+    ...draftPools.map((draftPool) => ({
+      value: createDraftPoolSlug(draftPool.name),
+      label: `${draftPool.name} (${drafts.filter((draft) => draft.poolId === draftPool.id).length})`,
+    })),
+  ];
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       try {
@@ -154,11 +189,11 @@ export default function RankingsDisplay() {
     setSearchTerm("");
   }
 
-  if (!hasLoaded || !hasLoadedOverrides) {
+  if (!hasLoaded || !hasLoadedOverrides || !hasLoadedDraftPools) {
     return <p className="mt-8 text-slate-300">Building rankings...</p>;
   }
 
-  if (rankings.length === 0) {
+  if (drafts.length === 0) {
     return (
       <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900 p-6">
         <h2 className="text-xl font-bold">No rankings yet</h2>
@@ -243,6 +278,14 @@ export default function RankingsDisplay() {
     handleDraftTrackerStatusChange(player, nextStatus);
   }
 
+  function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const nextPoolSlug = event.target.value;
+    setSelectedDraftPoolSlug(nextPoolSlug);
+    const nextUrl = nextPoolSlug === "all" ? "/rankings" : `/rankings?pool=${encodeURIComponent(nextPoolSlug)}`;
+    router.replace(nextUrl, {
+      scroll: false,
+    });
+  }
   return (
     <div className="mt-8">
       <div role="tablist" aria-label="Player ranking views" className="mb-2 flex border-b border-slate-800">
@@ -255,7 +298,8 @@ export default function RankingsDisplay() {
       </div>
       <div role="tabpanel" id="rankings-panel" aria-labelledby="rankings-tab" hidden={activeRankingView !== "rankings"}>
         <div className="bg-slate-950 xl:sticky xl:top-0 xl:z-40 xl:py-3">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,auto)]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(5,auto)]">
+            <FilterSelect id="rankingDraftPoolFilter" label="Choose a draft pool" value={activePoolSlug} options={draftPoolOptions} onChange={handleDraftPoolChange} />
             <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
             <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
             <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
@@ -320,6 +364,12 @@ export default function RankingsDisplay() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+        {poolFilteredDrafts.length === 0 && (
+          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900 p-6">
+            <h2 className="text-xl font-bold">No drafts in this pool</h2>
+            <p className="mt-2 text-slate-400">Assign at least one imported draft to this pool to build its personalized rankings.</p>
           </div>
         )}
         <div className="overflow-x-auto xl:overflow-x-visible">
@@ -388,7 +438,16 @@ export default function RankingsDisplay() {
                       </td>
                       <td className="px-3 py-1">
                         <div className="flex min-w-0 items-baseline gap-2">
-                          <Link href={`/players/${playerSlug}`} className="min-w-0 truncate text-sky-300 hover:text-sky-200 hover:underline" title={`View ${player.playerName}`}>
+                          <Link
+                            href={{
+                              pathname: `/players/${playerSlug}`,
+                              query: {
+                                pool: activePoolSlug,
+                              },
+                            }}
+                            className="min-w-0 truncate text-sky-300 hover:text-sky-200 hover:underline"
+                            title={`View ${player.playerName}`}
+                          >
                             {player.playerName}
                           </Link>
                           {player.meaningfulPassCount > 0 && <span className="shrink-0 text-xs font-normal text-slate-500">({player.meaningfulPassCount})</span>}
@@ -431,9 +490,17 @@ export default function RankingsDisplay() {
                 const excludedPlayerSlug = createPlayerSlug(excludedPlayerKey);
 
                 return (
-                  <Link key={excludedPlayerKey} href={`/players/${excludedPlayerSlug}`} className="rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 hover:border-red-800 hover:bg-red-950/30">
+                  <Link
+                    key={excludedPlayerKey}
+                    href={{
+                      pathname: `/players/${excludedPlayerSlug}`,
+                      query: {
+                        pool: activePoolSlug,
+                      },
+                    }}
+                    className="rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 hover:border-red-800 hover:bg-red-950/30"
+                  >
                     <span className="block font-semibold text-slate-200">{player.playerName}</span>
-
                     <span className="mt-1 block text-sm text-slate-500">
                       {player.position} · {player.nflTeam}
                     </span>
