@@ -29,10 +29,11 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 - Filter rankings by Draft Pool, position, and player name
 - Sort directly from ranking-table headings
 - Track draft frequency, personal average pick, overall average pick, draft rate, and meaningful passes
+- Apply an appearance penalty so players with very small draft samples do not outrank players supported by substantially more draft evidence
 - Calculate position ranks and dynamically generated ranking tiers
 - Manually move a player up or down the board with an ADP adjustment
 - Exclude unavailable or unwanted players while retaining an interface for restoring them
-- Export the current personalized rankings as a CSV file
+- Export personalized rankings, confidence data, penalties, and draft ranges as a CSV file
 
 ### Draft-day tools
 
@@ -44,7 +45,8 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 ### Player analysis
 
 - Open an individual page for any ranked player
-- Review Personalized ADP, position rank, draft count, overall ADP, and meaningful passes
+- Review Personalized ADP, position rank, draft count, overall ADP, meaningful passes, and Ranking Confidence
+- Compare the earliest and latest overall picks with the earliest and latest picks made by the user's teams
 - See every imported team containing that player
 - Inspect which players were selected instead during each meaningful pass
 - Apply manual ADP adjustments or hide a player from rankings, tiers, exports, and Best Available
@@ -77,9 +79,24 @@ Personalized ADP combines several signals from the imported drafts:
 - How frequently the player appeared across drafts
 - Drafts in which the player was not selected
 - Meaningful passes, where the user selected a player with a later overall average pick while the passed player was still available near the user's pick
+- An appearance penalty of up to 12 picks for players who appear in only a small percentage of drafts
 - Optional manual adjustments applied by the user
 
 Lower Personalized ADP values indicate an earlier draft preference. The model is intended to reveal drafting tendencies rather than provide projections of NFL performance.
+
+The appearance penalty is based on the percentage of drafts containing the player. It follows a curve so that rare players receive the largest adjustment, frequently drafted players receive very little adjustment, and players appearing in every draft receive no appearance penalty.
+
+## Ranking Confidence
+
+Ranking Confidence communicates how strongly the imported data supports a player's placement. The score combines the player's draft appearance rate with the number of actual appearances, preventing a player seen in two of two drafts from appearing as well established as a player seen in 70 of 70 drafts.
+
+- **Low:** 0–29% evidence score
+- **Medium:** 30–59% evidence score
+- **High:** 60–100% evidence score
+
+Ranking Confidence is informational and does not directly change Personalized ADP. The separate appearance penalty is the ranking adjustment applied to small draft samples.
+
+Individual player pages also display overall and personal draft ranges. These show the earliest and latest overall positions where the player was selected across the active Draft Pool. Players never selected by the user's teams display **Not drafted** for the personal range.
 
 Ranking tiers are derived from gaps between adjacent Personalized ADP values. The required gap grows as tiers progress, and large tiers receive a soft size limit so that a long cluster without a natural break remains usable on draft day. Tiers are recalculated for the currently filtered ranking list and appear only while sorting by Personalized ADP.
 

@@ -52,7 +52,16 @@ export type PlayerRanking = {
   manualAdpAdjustment: number;
   finalPersonalizedAdp: number;
   isExcluded: boolean;
+  rankingConfidence: number;
+  rankingConfidenceLabel: RankingConfidenceLabel;
+  appearancePenalty: number;
+  earliestOverallPick: number;
+  latestOverallPick: number;
+  myEarliestOverallPick: number | null;
+  myLatestOverallPick: number | null;
 };
+
+export type RankingConfidenceLabel = "Low" | "Medium" | "High";
 
 export type DraftTrackerStatus = "available" | "mine" | "taken";
 export type DraftTrackerState = Record<string, DraftTrackerStatus>;

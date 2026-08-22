@@ -16,7 +16,7 @@ import HistoryBackButton from "@/components/HistoryBackButton";
 import FilterSelect from "@/components/FilterSelect";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeftRight, ClipboardList, ArrowRight, Info, ChartColumn, Target, Users } from "lucide-react";
+import { ArrowLeftRight, ClipboardList, ArrowRight, Info, ChartColumn, Target, Users, ShieldCheck } from "lucide-react";
 
 type PlayerAnalysisProps = {
   playerSlug: string;
@@ -129,6 +129,10 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
   const adpDifference = player.finalPersonalizedAdp - player.averageOverallPick;
   const adpComparison = Math.abs(adpDifference) < 0.01 ? "Matches overall ADP" : `${Math.abs(adpDifference).toFixed(2)} picks ${adpDifference > 0 ? "later" : "earlier"} than overall ADP`;
   const minimumAdpWasApplied = player.weightedScore + player.manualAdpAdjustment < 1;
+  const hasOneOverallDraftPosition = player.earliestOverallPick === player.latestOverallPick;
+  const hasOnePersonalDraftPosition = player.myEarliestOverallPick !== null && player.myLatestOverallPick !== null && player.myEarliestOverallPick === player.myLatestOverallPick;
+  const overallDraftRange = hasOneOverallDraftPosition ? `${player.earliestOverallPick}` : `${player.earliestOverallPick}–${player.latestOverallPick}`;
+  const myDraftRange = player.myEarliestOverallPick === null || player.myLatestOverallPick === null ? "Not drafted" : hasOnePersonalDraftPosition ? `${player.myEarliestOverallPick}` : `${player.myEarliestOverallPick}–${player.myLatestOverallPick}`;
 
   function handlePlayerPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextPoolSlug = event.target.value;
@@ -143,63 +147,84 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
       <HistoryBackButton fallbackHref="/rankings" label="Back" />
       <header className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:p-8">
         <div className="absolute -top-24 -right-24 size-64 rounded-full bg-sky-500/10 blur-3xl" />
-        <div className="relative flex items-center gap-5">
-          <div className={`grid size-16 shrink-0 place-items-center rounded-full border border-white/15 text-xl font-bold text-white shadow-lg ${getPositionColor(player.position)}`}>{player.position}</div>
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,2fr)] lg:items-center">
+          <div className="flex items-center gap-5">
+            <div className={`grid size-16 shrink-0 place-items-center rounded-full border border-white/15 text-xl font-bold text-white shadow-lg ${getPositionColor(player.position)}`}>{player.position}</div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight">{player.playerName}</h1>
+              <p className="mt-2 text-slate-300">
+                {player.isExcluded ? "Excluded from rankings" : `${player.position}${player.positionRank}`}
+                <span className="mx-2 text-slate-600">•</span>
+                {player.nflTeam}
+              </p>
+              <div className="mt-5 max-w-sm">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Ranking Pool</p>
+                <FilterSelect id="playerRankingPool" label={`Choose a ranking pool for ${player.playerName}`} value={activePoolSlug} options={playerPoolOptions} onChange={handlePlayerPoolChange} />
+              </div>
+            </div>
+          </div>
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">{player.playerName}</h1>
-            <p className="mt-2 text-slate-300">
-              {player.isExcluded ? "Excluded from rankings" : `${player.position}${player.positionRank}`}
-              <span className="mx-2 text-slate-600">•</span>
-              {player.nflTeam}
-            </p>
-            <div className="mt-5 max-w-sm">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Ranking Pool</p>
-              <FilterSelect id="playerRankingPool" label={`Choose a ranking pool for ${player.playerName}`} value={activePoolSlug} options={playerPoolOptions} onChange={handlePlayerPoolChange} />
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Ranges</p>
+            <p className="mt-1 text-sm text-slate-400">Earliest and latest overall selections across the active ranking pool.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-4">
+                <p className="text-sm text-slate-400">Overall Draft Range</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums">{overallDraftRange}</p>
+                <p className="mt-1 text-xs text-slate-500">{hasOneOverallDraftPosition ? `Only observed at pick ${player.earliestOverallPick}` : `Pick ${player.earliestOverallPick} to pick ${player.latestOverallPick}`}</p>
+              </div>
+              <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-4">
+                <p className="text-sm text-slate-400">My Draft Range</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums">{myDraftRange}</p>
+                <p className="mt-1 text-xs text-slate-500">{player.myEarliestOverallPick === null ? "No personal draft selections" : hasOnePersonalDraftPosition ? `Only selected at pick ${player.myEarliestOverallPick}` : `Pick ${player.myEarliestOverallPick} to pick ${player.myLatestOverallPick}`}</p>
+              </div>
             </div>
           </div>
         </div>
       </header>
-      <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-        <div>
-          <h2 className="font-bold">Manual Ranking Override</h2>
-          <p className="mt-1 text-sm text-slate-400">Move this player in your rankings.</p>
-        </div>
-        <ManualAdpSlider
-          key={playerKey}
-          initialValue={currentOverride.manualAdpAdjustment}
-          onCommit={(value) =>
-            updateOverride(playerKey, {
-              ...currentOverride,
-              manualAdpAdjustment: value,
-            })
-          }
-        />
-        {minimumAdpWasApplied && (
-          <p role="status" className="mt-3 text-sm font-medium text-amber-300">
-            Minimum Personalized ADP of 1 applied.
-          </p>
-        )}
-        <div className="mt-6 flex items-center justify-between gap-6 border-t border-slate-800 pt-6">
+      <section className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(16rem,1fr)]">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
           <div>
-            <h3 className="font-semibold text-slate-200">Exclude from rankings</h3>
-            <p className="mt-1 text-sm text-slate-400">Hide this player from rankings, tiers, exports, and Best Available.</p>
+            <h2 className="font-bold">Manual Ranking Override</h2>
+            <p className="mt-1 text-sm text-slate-400">Move this player in your rankings.</p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={currentOverride.isExcluded}
-            aria-label={`Exclude ${player.playerName} from rankings`}
-            onClick={() =>
+          <ManualAdpSlider
+            key={playerKey}
+            initialValue={currentOverride.manualAdpAdjustment}
+            onCommit={(value) =>
               updateOverride(playerKey, {
                 ...currentOverride,
-                isExcluded: !currentOverride.isExcluded,
+                manualAdpAdjustment: value,
               })
             }
-            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors ${currentOverride.isExcluded ? "border-red-500 bg-red-600" : "border-slate-600 bg-slate-700"}`}
-          >
-            <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-sm transition-transform ${currentOverride.isExcluded ? "translate-x-6" : "translate-x-1"}`} />
-          </button>
+          />
+          {minimumAdpWasApplied && (
+            <p role="status" className="mt-3 text-sm font-medium text-amber-300">
+              Minimum Personalized ADP of 1 applied.
+            </p>
+          )}
+          <div className="mt-6 flex items-center justify-between gap-6 border-t border-slate-800 pt-6">
+            <div>
+              <h3 className="font-semibold text-slate-200">Exclude from rankings</h3>
+              <p className="mt-1 text-sm text-slate-400">Hide this player from rankings, tiers, exports, and Best Available.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={currentOverride.isExcluded}
+              aria-label={`Exclude ${player.playerName} from rankings`}
+              onClick={() =>
+                updateOverride(playerKey, {
+                  ...currentOverride,
+                  isExcluded: !currentOverride.isExcluded,
+                })
+              }
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors ${currentOverride.isExcluded ? "border-red-500 bg-red-600" : "border-slate-600 bg-slate-700"}`}
+            >
+              <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-sm transition-transform ${currentOverride.isExcluded ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
         </div>
+        <StatCard label="Ranking Confidence" value={player.rankingConfidenceLabel} description={`${player.rankingConfidence.toFixed(0)}% evidence score · Appeared in ${player.timesDrafted} of ${player.totalDrafts} drafts`} icon={<ShieldCheck size={18} />} />
       </section>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Personalized ADP" value={player.finalPersonalizedAdp.toFixed(2)} description={adpComparison} featured icon={<Target size={18} />} />

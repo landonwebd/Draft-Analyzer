@@ -1,4 +1,4 @@
-import type { ImportedDraft, PlayerRanking, Position, MeaningfulPass, PlayerRankingOverrides } from "@/types/draft";
+import type { ImportedDraft, PlayerRanking, Position, MeaningfulPass, PlayerRankingOverrides, RankingConfidenceLabel } from "@/types/draft";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 
 type PlayerAccumulator = {
@@ -9,6 +9,10 @@ type PlayerAccumulator = {
   draftIds: Set<string>;
   myTotalOverallPick: number;
   myDraftIds: Set<string>;
+  earliestOverallPick: number;
+  latestOverallPick: number;
+  myEarliestOverallPick: number | null;
+  myLatestOverallPick: number | null;
 };
 
 type PersonalPassStats = {
@@ -18,6 +22,35 @@ type PersonalPassStats = {
   meaningfulPassCount: number;
   meaningfulPasses: MeaningfulPass[];
 };
+
+type RankingConfidence = {
+  score: number;
+  label: RankingConfidenceLabel;
+};
+
+const MAX_APPEARANCE_PENALTY = 12;
+
+function calculateRankingConfidence(timesDrafted: number, totalDrafts: number): RankingConfidence {
+  if (timesDrafted === 0 || totalDrafts === 0) {
+    return {
+      score: 0,
+      label: "Low",
+    };
+  }
+  const draftRate = timesDrafted / totalDrafts;
+  const sampleSizeStrength = timesDrafted / (timesDrafted + 10);
+  const score = Math.sqrt(draftRate * sampleSizeStrength) * 100;
+  let label: RankingConfidenceLabel = "Low";
+  if (score >= 60) {
+    label = "High";
+  } else if (score >= 30) {
+    label = "Medium";
+  }
+  return {
+    score,
+    label,
+  };
+}
 
 function calculatePersonalPassStats(playerName: string, position: Position, nflTeam: string, drafts: ImportedDraft[], playersByName: Map<string, PlayerAccumulator>, myDraftCount: number): PersonalPassStats {
   let passOpportunityCount = 0;
@@ -97,9 +130,13 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
       if (existingPlayer) {
         existingPlayer.totalOverallPick += pick.overall;
         existingPlayer.draftIds.add(draft.id);
+        existingPlayer.earliestOverallPick = Math.min(existingPlayer.earliestOverallPick, pick.overall);
+        existingPlayer.latestOverallPick = Math.max(existingPlayer.latestOverallPick, pick.overall);
         if (draftedByMe) {
           existingPlayer.myTotalOverallPick += pick.overall;
           existingPlayer.myDraftIds.add(draft.id);
+          existingPlayer.myEarliestOverallPick = existingPlayer.myEarliestOverallPick === null ? pick.overall : Math.min(existingPlayer.myEarliestOverallPick, pick.overall);
+          existingPlayer.myLatestOverallPick = existingPlayer.myLatestOverallPick === null ? pick.overall : Math.max(existingPlayer.myLatestOverallPick, pick.overall);
         }
         continue;
       }
@@ -111,6 +148,10 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
         draftIds: new Set([draft.id]),
         myTotalOverallPick: draftedByMe ? pick.overall : 0,
         myDraftIds: draftedByMe ? new Set([draft.id]) : new Set<string>(),
+        earliestOverallPick: pick.overall,
+        latestOverallPick: pick.overall,
+        myEarliestOverallPick: draftedByMe ? pick.overall : null,
+        myLatestOverallPick: draftedByMe ? pick.overall : null,
       });
     }
   }
@@ -122,6 +163,9 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
     const totalDrafts = drafts.length;
     const timesDrafted = player.draftIds.size;
     const draftRate = timesDrafted / totalDrafts;
+    const rankingConfidence = calculateRankingConfidence(timesDrafted, totalDrafts);
+    const appearanceDeficit = 1 - draftRate;
+    const appearancePenalty = MAX_APPEARANCE_PENALTY * appearanceDeficit ** 2;
     const averageOverallPick = player.totalOverallPick / timesDrafted;
     const myDraftCount = player.myDraftIds.size;
     const myDraftRate = myDraftCount / totalDrafts;
@@ -140,7 +184,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
       }
     }
 
-    const weightedScore = weightedPickTotal / totalDrafts + personalPassPenalty;
+    const weightedScore = weightedPickTotal / totalDrafts + personalPassPenalty + appearancePenalty;
     const finalPersonalizedAdp = Math.max(1, weightedScore + manualAdpAdjustment);
 
     return {
@@ -151,9 +195,13 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
       timesDrafted,
       draftRate,
       averageOverallPick,
+      earliestOverallPick: player.earliestOverallPick,
+      latestOverallPick: player.latestOverallPick,
       weightedScore,
       myDraftCount: myDraftCount,
       myAverageOverallPick: myAverageOverallPick,
+      myEarliestOverallPick: player.myEarliestOverallPick,
+      myLatestOverallPick: player.myLatestOverallPick,
       myDraftRate,
       passOpportunityCount,
       timesPassed,
@@ -163,6 +211,9 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
       manualAdpAdjustment,
       finalPersonalizedAdp,
       isExcluded,
+      rankingConfidence: rankingConfidence.score,
+      rankingConfidenceLabel: rankingConfidence.label,
+      appearancePenalty,
     };
   });
 
