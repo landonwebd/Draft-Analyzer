@@ -6,6 +6,15 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 
 ## Features
 
+### Accounts and data portability
+
+- Create an account and sign in with Supabase Auth
+- Synchronize authenticated draft pools, imported drafts, and draft picks through Supabase Postgres
+- Continue using the full application anonymously with browser storage
+- Detect guest data after sign-in and either merge it safely into an account or delete it from the browser
+- Preserve existing account drafts and pool assignments when duplicate guest drafts are skipped
+- Access account data across supported browsers and devices by signing in
+
 ### Draft importing and organization
 
 - Import multiple RTSports or ESPN draft CSV files at once
@@ -112,15 +121,23 @@ Draft Pools allow drafts with different scoring systems or formats to produce se
 
 ## Data storage and privacy
 
-Application data is currently stored in the browser's local storage. There is no database, account system, or cross-device synchronization.
+Draft Analyzer supports both anonymous browser storage and authenticated cloud storage.
 
-This means:
+For guests:
 
-- Imported drafts remain available after refreshing the page
-- Draft Pools, ranking overrides, excluded players, and an active Draft Tracker session also persist locally
-- Drafts are available only in the browser where they were imported
-- Clearing browser storage removes saved application data
-- Deploying a new version of the app does not automatically move local data between domains or devices
+- Imported drafts and Draft Pools are stored in the browser's local storage
+- Data remains available after refreshing but is limited to that browser and site domain
+- Clearing browser storage removes locally saved data
+
+For signed-in users:
+
+- Draft Pools, imported drafts, and draft picks are stored in Supabase Postgres
+- Supabase Row Level Security restricts each user to their own records
+- Account data is available across devices after signing in
+- Existing guest data can be merged into an account without overwriting matching account drafts
+- Guest data remains in the browser if a transfer fails and is removed only after a successful merge
+
+Ranking overrides, excluded players, and active Draft Tracker sessions currently remain browser-specific.
 
 ## Local development
 
@@ -128,6 +145,7 @@ This means:
 
 - Node.js
 - npm
+- A Supabase project
 - A FantasyPros API key for FantasyPros imports
 
 ### Installation
@@ -140,9 +158,13 @@ Create a `.env.local` file in the project root:
 
 ```bash
 FANTASYPROS_API_KEY=your_api_key_here
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ```
 
-Do not commit `.env.local`. Environment files are ignored by this repository.
+Do not commit `.env.local`. Environment files are ignored by this repository. The Supabase URL and publishable key are designed for browser use; never expose a database password or Supabase service-role key through a `NEXT_PUBLIC_` variable.
+
+Apply the SQL migrations in `supabase/migrations/` to the Supabase project before using account storage.
 
 Start the development server:
 
@@ -167,6 +189,9 @@ npm run start  # Run the production build locally
 - React 19
 - TypeScript 5
 - Tailwind CSS 4
+- Supabase Auth
+- Supabase Postgres with Row Level Security
+- Supabase SSR
 - Papa Parse
 - Lucide icons
 - Radix UI Slider
@@ -176,15 +201,26 @@ npm run start  # Run the production build locally
 ```text
 src/app/          Pages and server API routes
 src/components/   Reusable React components
-src/hooks/        Browser-storage and stateful feature hooks
+src/hooks/        Hybrid browser/database storage and stateful feature hooks
+src/lib/supabase/ Supabase clients and database helpers
 src/types/        Shared TypeScript types
 src/utils/        Import, conversion, storage, and ranking utilities
+supabase/          Database migrations
+docs/              Database and project documentation
 public/           Static instruction pages, screenshots, and the ESPN exporter
 ```
 
 ## Deployment
 
-The app is designed for deployment on Vercel. Add `FANTASYPROS_API_KEY` to the project's Vercel environment variables before deploying if FantasyPros imports will remain enabled.
+The app is designed for deployment on Vercel. Configure these project environment variables before deploying:
+
+```text
+FANTASYPROS_API_KEY
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+Configure the production Site URL and allowed redirect URLs under Supabase Authentication settings. Environment-variable changes in Vercel require a new deployment.
 
 Before deployment, verify the current version with:
 
@@ -195,9 +231,8 @@ npm run build
 
 ## Current limitations
 
-- Drafts are stored locally and are not synchronized between devices
-- There are no user accounts or database backups
+- Guest data is browser-specific until it is moved into an account
+- Ranking overrides, excluded players, and Draft Tracker progress are not yet synchronized between devices
 - Supported CSV formats currently depend on the expected RTSports and ESPN columns
 - The FantasyPros integration is experimental
 - The ESPN bookmarklet depends on ESPN's current page structure
-- Draft Pools and ranking overrides are also local to one browser

@@ -153,7 +153,25 @@
       <p class="lede">Thank you for testing Draft Analyzer. Please approach the app as someone with no fantasy-football knowledge. The goal is to find unclear language, hidden actions, unexpected behavior, and places where the interface assumes too much.</p>
 
       <div class="notice">
-        <strong>Testing note:</strong> Draft Analyzer stores drafts in browser storage. For an isolated test, use a private browsing window. Knowing this page's URL grants access to it; the page is unlinked and excluded from search indexing, but it is not password-protected.
+        <strong>Testing note:</strong> Draft Analyzer now supports both guest browser storage and Supabase accounts. Start signed out to test the guest experience, then create a test account to evaluate cloud storage and guest-data transfer. For a completely isolated test, use a private browsing window. Knowing this page's URL grants access to it; the page is unlinked and excluded from search indexing, but it is not password-protected.
+      </div>
+
+      <h2>What changed since the original review</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Accounts and cloud storage</h3>
+          <p>Users can now sign up, sign in, sign out, and access their draft pools and imported drafts across devices through Supabase.</p>
+        </section>
+
+        <section class="card">
+          <h3>Guest mode remains available</h3>
+          <p>Signed-out users still work entirely in browser storage. After signing in, they can merge guest drafts into their account or permanently delete the browser copies.</p>
+        </section>
+
+        <section class="card">
+          <h3>Deeper analysis</h3>
+          <p>Rankings now include confidence, draft ranges, refined meaningful-pass weighting, faster pool switching, individual player pages, and improved navigation between related drafts and players.</p>
+        </section>
       </div>
 
       <h2>Start here</h2>
@@ -182,7 +200,28 @@
           <p><a class="button" href="/ux-large-draft-test-set.zip" download>Download 20-Draft ZIP</a></p>
           <button class="button button-secondary" id="loadSampleDrafts" type="button">Load 20 Sample Drafts</button>
           <p class="expected"><strong>Download:</strong> Unzip the folder, select all 20 CSV files, and choose <strong>UX Tester Team</strong> for each pending import.</p>
-          <p class="expected"><strong>Quick load:</strong> Replaces drafts stored in this browser and opens the app with all 20 drafts already saved.</p>
+          <p class="expected"><strong>Quick load:</strong> Replaces guest drafts stored in this browser and opens the app with all 20 drafts ready. If you are signed in, the app should offer to move them into your account.</p>
+        </section>
+      </div>
+
+      <h2>Account and storage tests</h2>
+      <div class="grid">
+        <section class="card">
+          <h3>Guest workflow</h3>
+          <p>Remain signed out, import drafts, create and rename Draft Pools, assign drafts, and refresh the page.</p>
+          <p class="expected"><strong>Expected:</strong> Guest data persists in this browser, while the header identifies you as a guest and offers a sign-in link.</p>
+        </section>
+
+        <section class="card">
+          <h3>Account workflow</h3>
+          <p>Create a test account or sign in, then create, rename, assign, and delete account data.</p>
+          <p class="expected"><strong>Expected:</strong> The header shows the account email, the account page confirms the session, and saved data returns after signing out and back in.</p>
+        </section>
+
+        <section class="card">
+          <h3>Guest-data transfer</h3>
+          <p>Import data while signed out, then sign in and use the browser-data banner. Test the confirmation screens before choosing whether to move or delete the guest data.</p>
+          <p class="expected"><strong>Expected:</strong> Moving merges new data without changing existing account drafts. Duplicate source files are skipped, and browser copies disappear only after a successful transfer.</p>
         </section>
       </div>
 
@@ -207,17 +246,23 @@
 
       <h2>Suggested test</h2>
       <ol class="checklist">
-        <li>Without importing anything, explore the home page and describe what you believe the app does.</li>
-        <li>Import both CSV samples at the same time.</li>
-        <li>Choose <strong>UX Tester Team</strong> and save each pending draft.</li>
-        <li>Import the working FantasyPros URL and save that draft.</li>
-        <li>Try importing the same FantasyPros URL again.</li>
-        <li>Try the invalid FantasyPros URL.</li>
+        <li>Begin signed out. Explore the home page and describe what you believe the app does.</li>
+        <li>Import both CSV samples at the same time, choose <strong>UX Tester Team</strong>, and save them.</li>
+        <li>Create two Draft Pools, rename one, and assign drafts to each pool.</li>
+        <li>Refresh and confirm the guest drafts and pool assignments persist.</li>
+        <li>Import the working FantasyPros URL, then try importing it again and try the invalid URL.</li>
+        <li>Sort the saved drafts and confirm the sort control is hidden when only one or no drafts exist.</li>
         <li>Open an imported draft and test its position, team, and player-search filters.</li>
-        <li>Return home and delete one draft.</li>
-        <li>Open the Personalized Rankings page and test its filters and sortable columns.</li>
-        <li>Download the rankings CSV.</li>
-        <li>Refresh the browser and confirm the remaining drafts persist.</li>
+        <li>Confirm the individual draft page includes the site header and allows its pool assignment to change.</li>
+        <li>Open Personalized Rankings and test pool, position, search, and sortable-column controls.</li>
+        <li>Switch between a small and large Draft Pool and note whether filtering feels responsive.</li>
+        <li>Open a player page and review Ranking Confidence, overall and personal draft ranges, meaningful passes, and team appearances.</li>
+        <li>Follow both the related-player and draft links from a meaningful pass and confirm each opens the expected page.</li>
+        <li>Apply a manual ADP adjustment, exclude and restore a player, and download the rankings CSV.</li>
+        <li>Enable Draft Tracker Mode and cycle players through Available, Mine, and Unavailable.</li>
+        <li>Create a test account or sign in and inspect the guest-data transfer confirmation.</li>
+        <li>Move the guest data into the account and confirm drafts, pools, and assignments remain intact.</li>
+        <li>Sign out and confirm account drafts disappear; sign back in and confirm they return.</li>
         <li>Try the experience at a narrow/mobile browser width.</li>
       </ol>
 
@@ -226,7 +271,14 @@
         <p>Could you tell what the application was for immediately?</p>
         <p>Which fantasy-football terms were unclear?</p>
         <p>Was the difference between a pending import and a saved draft understandable?</p>
+        <p>Was the difference between guest browser data and account data understandable?</p>
+        <p>Did the sign-up, sign-in, account, and sign-out workflow behave as expected?</p>
+        <p>Did the guest-data transfer explanation make it clear what would be merged, skipped, or deleted?</p>
+        <p>Were Draft Pools and the meaning of Unassigned understandable?</p>
         <p>Did Personalized ADP and meaningful passes make sense?</p>
+        <p>Were Ranking Confidence and personal versus overall draft ranges understandable?</p>
+        <p>Could you tell where player links and draft links would take you?</p>
+        <p>Did Draft Tracker Mode feel understandable and useful?</p>
         <p>Were the RTSports, ESPN, and FantasyPros instructions easy to discover?</p>
         <p>Were error messages useful?</p>
         <p>What did you expect to happen that did not happen?</p>
