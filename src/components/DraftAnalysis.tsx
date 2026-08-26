@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
-import type { ImportedDraft, PositionFilter } from "@/types/draft";
-import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
+import { useMemo, useState } from "react";
+import type { PositionFilter } from "@/types/draft";
+import { useImportedDrafts } from "@/hooks/useImportedDrafts";
 import FilterSelect from "@/components/FilterSelect";
 import PlayerList from "@/components/PlayerList";
 import StatCard from "@/components/StatCard";
@@ -21,8 +21,6 @@ type DraftAnalysisProps = {
 };
 
 export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
-  const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<PositionFilter>("ALL");
   const [selectedFantasyTeamFilter, setSelectedFantasyTeamFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,6 +29,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
   const [bestAvailableSearchTerm, setBestAvailableSearchTerm] = useState("");
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
+  const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded, assignImportedDraftToPool } = useImportedDrafts();
   const draftPoolOptions = [
     {
       value: "",
@@ -43,30 +42,6 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
   ];
   const filtersAreClear = selectedPosition === "ALL" && searchTerm === "" && selectedFantasyTeamFilter === "ALL";
   const bestAvailableFiltersAreClear = selectedBestAvailablePosition === "ALL" && bestAvailableSearchTerm === "";
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      try {
-        const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-
-        if (storedValue) {
-          const parsedValue: unknown = JSON.parse(storedValue);
-
-          if (Array.isArray(parsedValue)) {
-            setDrafts(parsedValue as ImportedDraft[]);
-          }
-        }
-      } catch (error) {
-        console.error("Unable to load saved draft:", error);
-      } finally {
-        setHasLoaded(true);
-      }
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
-
   const draft = drafts.find((storedDraft) => storedDraft.id === draftId) ?? null;
   const draftPoolDrafts = useMemo(() => (draft ? drafts.filter((storedDraft) => (draft.poolId ? storedDraft.poolId === draft.poolId : storedDraft.poolId === undefined)) : []), [drafts, draft]);
   const rankings = useMemo(() => buildPlayerRankings(draftPoolDrafts, overrides), [draftPoolDrafts, overrides]);
@@ -104,18 +79,9 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
     setBestAvailableSearchTerm("");
   }
 
-  function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  async function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const selectedPoolId = event.target.value === "" ? undefined : event.target.value;
-    const updatedDrafts = drafts.map((storedDraft) =>
-      storedDraft.id === draftId
-        ? {
-            ...storedDraft,
-            poolId: selectedPoolId,
-          }
-        : storedDraft,
-    );
-    setDrafts(updatedDrafts);
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(updatedDrafts));
+    await assignImportedDraftToPool(draftId, selectedPoolId);
   }
 
   if (!hasLoaded || !hasLoadedOverrides || !hasLoadedDraftPools) {

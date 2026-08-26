@@ -5,7 +5,6 @@ import ImportedDraftCard from "@/components/ImportedDraftCard";
 import HomeHero from "@/components/HomeHero";
 import type { ImportedDraft, PendingDraft } from "@/types/draft";
 import type { FantasyProsDraftResponse } from "@/types/fantasyPros";
-import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { Bomb, ChevronRight, ChevronLeft, X } from "lucide-react";
 import Link from "next/link";
 import { buildFantasyProsPlayerLookup } from "@/utils/buildFantasyProsPlayerLookup";
@@ -15,31 +14,47 @@ import { isFantasyProsDraftResponse } from "@/utils/isFantasyProsDraftResponse";
 import DraftPoolManager from "@/components/DraftPoolManager";
 import SiteHeader from "@/components/SiteHeader";
 import { useDraftPools } from "@/hooks/useDraftPools";
+import { useImportedDrafts } from "@/hooks/useImportedDrafts";
+import { useGuestDataTransfer } from "@/hooks/useGuestDataTransfer";
 import { convertFileToPendingDraft } from "@/utils/convertFileToPendingDraft";
 import PendingDraftCard from "@/components/PendingDraftCard";
 import { createFantasyTeamOptions } from "@/utils/createFantasyTeamOptions";
+import FilterSelect from "@/components/FilterSelect";
+import GuestDataTransferBanner from "@/components/GuestDataTransferBanner";
 
 const DRAFTS_PER_PAGE = 9;
 
+type DraftSortOption = "newest" | "oldest" | "team-ascending" | "team-descending";
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [importedDrafts, setImportedDrafts] = useState<ImportedDraft[]>([]);
   const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
-  const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const [fantasyProsUrl, setFantasyProsUrl] = useState("");
   const [isFantasyProsImporting, setIsFantasyProsImporting] = useState(false);
   const [fantasyProsImportError, setFantasyProsImportError] = useState("");
   const [showBoomConfirmation, setShowBoomConfirmation] = useState(false);
   const [currentDraftPage, setCurrentDraftPage] = useState(1);
+  const [draftSortOption, setDraftSortOption] = useState<DraftSortOption>("newest");
   const [showImportWorkspace, setShowImportWorkspace] = useState(false);
-  const { draftPools, createDraftPool, renameDraftPool, deleteDraftPool } = useDraftPools();
-
+  const { draftPools, draftPoolStorage, createDraftPool, renameDraftPool, deleteDraftPool, addMergedDraftPools } = useDraftPools();
+  const { importedDrafts, hasLoadedImportedDrafts, createImportedDraft, deleteImportedDraft, assignImportedDraftToPool, importedDraftStorage, deleteAllImportedDrafts, unassignImportedDraftsFromPool, addMergedImportedDrafts } = useImportedDrafts();
+  const accountStorageIsActive = draftPoolStorage === "database" && importedDraftStorage === "database";
+  const { guestDrafts, guestDraftPools, hasGuestData, hasLoadedGuestData, deleteGuestBrowserData, moveGuestBrowserDataToAccount } = useGuestDataTransfer(accountStorageIsActive);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const rankingsAreAvailable = hasLoadedStorage && importedDrafts.length > 0;
+  const rankingsAreAvailable = hasLoadedImportedDrafts && importedDrafts.length > 0;
   const totalDraftPages = Math.ceil(importedDrafts.length / DRAFTS_PER_PAGE);
-  const newestDrafts = [...importedDrafts].reverse();
+  const sortedDrafts = [...importedDrafts];
+  if (draftSortOption === "newest") {
+    sortedDrafts.reverse();
+  }
+  if (draftSortOption === "team-ascending") {
+    sortedDrafts.sort((draftA, draftB) => draftA.myFantasyTeam.localeCompare(draftB.myFantasyTeam));
+  }
+  if (draftSortOption === "team-descending") {
+    sortedDrafts.sort((draftA, draftB) => draftB.myFantasyTeam.localeCompare(draftA.myFantasyTeam));
+  }
   const firstDraftIndex = (currentDraftPage - 1) * DRAFTS_PER_PAGE;
-  const visibleDrafts = newestDrafts.slice(firstDraftIndex, firstDraftIndex + DRAFTS_PER_PAGE);
+  const visibleDrafts = sortedDrafts.slice(firstDraftIndex, firstDraftIndex + DRAFTS_PER_PAGE);
   const draftPoolOptions = [
     {
       value: "",
@@ -55,77 +70,46 @@ export default function Home() {
       fileInputRef.current.value = "";
     }
   }, []);
-  useEffect(() => {
-    const timeoutID = window.setTimeout(() => {
-      try {
-        const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-        if (storedValue) {
-          const parsedValue: unknown = JSON.parse(storedValue);
-          if (Array.isArray(parsedValue)) {
-            setImportedDrafts(parsedValue as ImportedDraft[]);
-          }
-        }
-      } catch (error) {
-        console.error("Unable to load saved drafts:", error);
-      } finally {
-        setHasLoadedStorage(true);
-      }
-    }, 0);
-    return () => {
-      window.clearTimeout(timeoutID);
-    };
-  }, []);
-  useEffect(() => {
-    if (!hasLoadedStorage) {
+  const draftSortOptions = [
+    { value: "newest", label: "Newest first" },
+    { value: "oldest", label: "Oldest first" },
+    { value: "team-ascending", label: "Team name A–Z" },
+    { value: "team-descending", label: "Team name Z–A" },
+  ];
+
+  async function handleDeleteDraft(draftId: string) {
+    const remainingDrafts = importedDrafts.filter((draft) => draft.id !== draftId);
+    const remainingPageCount = Math.max(1, Math.ceil(remainingDrafts.length / DRAFTS_PER_PAGE));
+    const draftWasDeleted = await deleteImportedDraft(draftId);
+    if (!draftWasDeleted) {
       return;
     }
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(importedDrafts));
-  }, [importedDrafts, hasLoadedStorage]);
-
-  function handleDeleteDraft(draftId: string) {
-    const remainingDrafts = importedDrafts.filter((draft) => draft.id !== draftId);
-
-    const remainingPageCount = Math.max(1, Math.ceil(remainingDrafts.length / DRAFTS_PER_PAGE));
-
-    setImportedDrafts(remainingDrafts);
-
     setCurrentDraftPage((currentPage) => Math.min(currentPage, remainingPageCount));
   }
 
-  function handleDeleteAllDrafts() {
-    if (importedDrafts.length === 0) {
+  async function handleDeleteAllDrafts() {
+    const draftsWereDeleted = await deleteAllImportedDrafts();
+    if (!draftsWereDeleted) {
       return;
     }
-    setImportedDrafts([]);
     setShowBoomConfirmation(false);
     setCurrentDraftPage(1);
   }
 
-  function handleAssignDraftToPool(draftId: string, poolId: string | undefined) {
-    setImportedDrafts((currentDrafts) =>
-      currentDrafts.map((draft) =>
-        draft.id === draftId
-          ? {
-              ...draft,
-              poolId,
-            }
-          : draft,
-      ),
-    );
+  async function handleAssignDraftToPool(draftId: string, poolId: string | undefined) {
+    await assignImportedDraftToPool(draftId, poolId);
   }
 
-  function handleDeleteDraftPool(draftPoolId: string) {
-    deleteDraftPool(draftPoolId);
-    setImportedDrafts((currentDrafts) =>
-      currentDrafts.map((draft) =>
-        draft.poolId === draftPoolId
-          ? {
-              ...draft,
-              poolId: undefined,
-            }
-          : draft,
-      ),
-    );
+  async function handleDeleteDraftPool(draftPoolId: string): Promise<boolean> {
+    const poolWasDeleted = await deleteDraftPool(draftPoolId);
+
+    if (!poolWasDeleted) {
+      return false;
+    }
+
+    unassignImportedDraftsFromPool(draftPoolId);
+
+    return true;
   }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -157,7 +141,7 @@ export default function Home() {
     setPendingDrafts((currentDrafts) => currentDrafts.map((pendingDraft) => (pendingDraft.id === pendingDraftId ? { ...pendingDraft, selectedPoolId } : pendingDraft)));
   }
 
-  function handleSavePendingDraft(pendingDraftId: string) {
+  async function handleSavePendingDraft(pendingDraftId: string) {
     const pendingDraft = pendingDrafts.find((draft) => draft.id === pendingDraftId);
     if (!pendingDraft) {
       return;
@@ -176,7 +160,10 @@ export default function Home() {
       poolId: pendingDraft.selectedPoolId || undefined,
       picks: pendingDraft.picks,
     };
-    setImportedDrafts((currentDrafts) => [...currentDrafts, importedDraft]);
+    const draftWasCreated = await createImportedDraft(importedDraft);
+    if (!draftWasCreated) {
+      return;
+    }
     setCurrentDraftPage(1);
     setPendingDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== pendingDraftId));
   }
@@ -270,12 +257,25 @@ export default function Home() {
     }
   }
 
+  async function handleMoveGuestDataToAccount(): Promise<boolean> {
+    const mergeResult = await moveGuestBrowserDataToAccount(draftPools, importedDrafts);
+    if (!mergeResult) {
+      return false;
+    }
+    addMergedDraftPools(mergeResult.createdDraftPools);
+    addMergedImportedDrafts(mergeResult.createdDrafts);
+
+    return true;
+  }
+
   return (
     <>
       <SiteHeader />
+
       <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
         <div className="mx-auto max-w-7xl">
           <HomeHero rankingsAreAvailable={rankingsAreAvailable} draftCount={importedDrafts.length} poolCount={draftPools.length} onImportDraft={() => setShowImportWorkspace(true)} />
+          {hasLoadedGuestData && hasGuestData && <GuestDataTransferBanner guestDraftCount={guestDrafts.length} guestDraftPoolCount={guestDraftPools.length} onDeleteGuestData={deleteGuestBrowserData} onMoveGuestData={handleMoveGuestDataToAccount} />}
           {showImportWorkspace && (
             <section id="import-drafts" className="mt-12 scroll-mt-8 rounded-2xl border border-slate-800 bg-slate-900/50 p-6 sm:p-8">
               <div className="flex items-start justify-between gap-4">
@@ -360,7 +360,7 @@ export default function Home() {
               )}
             </section>
           )}
-          <DraftPoolManager draftPools={draftPools} onCreateDraftPool={createDraftPool} onRenameDraftPool={renameDraftPool} onDeleteDraftPool={handleDeleteDraftPool} importedDrafts={importedDrafts} />
+          <DraftPoolManager draftPools={draftPools} draftPoolStorage={draftPoolStorage} onCreateDraftPool={createDraftPool} onRenameDraftPool={renameDraftPool} onDeleteDraftPool={handleDeleteDraftPool} importedDrafts={importedDrafts} />
           <section className="mt-12">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -370,6 +370,21 @@ export default function Home() {
                   {draftPools.length > 0 && ` across ${draftPools.length} ${draftPools.length === 1 ? "pool" : "pools"}`}.
                 </p>
               </div>
+              {importedDrafts.length > 1 && (
+                <div>
+                  <p className="mb-2 text-sm text-slate-400">Sort Drafts</p>
+                  <FilterSelect
+                    id="draftSort"
+                    label="Sort drafts"
+                    value={draftSortOption}
+                    options={draftSortOptions}
+                    onChange={(event) => {
+                      setDraftSortOption(event.target.value as DraftSortOption);
+                      setCurrentDraftPage(1);
+                    }}
+                  />
+                </div>
+              )}
               {importedDrafts.length > DRAFTS_PER_PAGE && (
                 <div className="flex items-center gap-4">
                   <button type="button" aria-label="Previous page" onClick={handlePreviousDraftPage} disabled={currentDraftPage === 1} className="cursor-pointer rounded-lg border border-slate-700 p-2 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
@@ -408,7 +423,7 @@ export default function Home() {
                     Delete all imported drafts?
                   </h3>
                   <p className="mt-3 text-center text-slate-300">
-                    You are about to permanently delete all <strong className="text-white">{importedDrafts.length} imported drafts</strong> from this browser.
+                    You are about to permanently delete all <strong className="text-white">{importedDrafts.length} imported drafts</strong> {importedDraftStorage === "database" ? "from your account." : "from this browser."}
                   </p>
                   <p className="mt-3 text-center text-sm font-semibold uppercase tracking-wide text-red-400">This action cannot be undone.</p>
                   <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">

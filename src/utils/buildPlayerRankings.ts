@@ -1,4 +1,4 @@
-import type { ImportedDraft, PlayerRanking, Position, MeaningfulPass, PlayerRankingOverrides, RankingConfidenceLabel } from "@/types/draft";
+import type { DraftPick, ImportedDraft, PlayerRanking, Position, MeaningfulPass, PlayerRankingOverrides, RankingConfidenceLabel } from "@/types/draft";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 
 type PlayerAccumulator = {
@@ -29,6 +29,7 @@ type RankingConfidence = {
 };
 
 const MAX_APPEARANCE_PENALTY = 12;
+const MEANINGFUL_PASS_WEIGHT = 0.75;
 
 function calculateRankingConfidence(timesDrafted: number, totalDrafts: number): RankingConfidence {
   if (timesDrafted === 0 || totalDrafts === 0) {
@@ -52,7 +53,7 @@ function calculateRankingConfidence(timesDrafted: number, totalDrafts: number): 
   };
 }
 
-function calculatePersonalPassStats(playerName: string, position: Position, nflTeam: string, drafts: ImportedDraft[], playersByName: Map<string, PlayerAccumulator>, myDraftCount: number): PersonalPassStats {
+function calculatePersonalPassStats(playerName: string, position: Position, nflTeam: string, drafts: ImportedDraft[], picksByDraftIdAndPlayerKey: Map<string, Map<string, DraftPick>>, userPicksByDraftId: Map<string, DraftPick[]>, leagueSizesByDraftId: Map<string, number>, playersByName: Map<string, PlayerAccumulator>, myDraftCount: number): PersonalPassStats {
   let passOpportunityCount = 0;
   let timesPassed = 0;
   let totalPassSeverity = 0;
@@ -62,12 +63,12 @@ function calculatePersonalPassStats(playerName: string, position: Position, nflT
   const playerKey = createPlayerKey(playerName, position, nflTeam);
 
   for (const draft of drafts) {
-    const playerPick = draft.picks.find((pick) => createPlayerKey(pick.playerName, pick.position, pick.nflTeam) === playerKey);
+    const playerPick = picksByDraftIdAndPlayerKey.get(draft.id)?.get(playerKey);
     if (!playerPick) {
       continue;
     }
-    const leagueSize = new Set(draft.picks.map((pick) => pick.fantasyTeam)).size;
-    const nearbyUserPicks = draft.picks.filter((pick) => pick.fantasyTeam === draft.myFantasyTeam && pick.overall <= playerPick.overall && playerPick.overall - pick.overall <= leagueSize);
+    const leagueSize = leagueSizesByDraftId.get(draft.id) ?? 0;
+    const nearbyUserPicks = (userPicksByDraftId.get(draft.id) ?? []).filter((pick) => pick.overall <= playerPick.overall && playerPick.overall - pick.overall <= leagueSize);
     const userSelectedPick = nearbyUserPicks.at(-1);
 
     if (!userSelectedPick) {
@@ -102,8 +103,8 @@ function calculatePersonalPassStats(playerName: string, position: Position, nflT
     }
   }
   const averageOpportunityLeagueSize = passOpportunityCount > 0 ? opportunityLeagueSizeTotal / passOpportunityCount : 0;
-  const severityPenalty = (totalPassSeverity / (passOpportunityCount + 5)) * 1.5;
-  const repeatedPreferencePenalty = averageOpportunityLeagueSize * 1.5 * (meaningfulPassCount / (meaningfulPassCount + 5));
+  const severityPenalty = (totalPassSeverity / (passOpportunityCount + 5)) * MEANINGFUL_PASS_WEIGHT;
+  const repeatedPreferencePenalty = averageOpportunityLeagueSize * MEANINGFUL_PASS_WEIGHT * (meaningfulPassCount / (meaningfulPassCount + 5));
   const draftHistoryProtection = 1 / (myDraftCount + 1);
   const personalPassPenalty = (severityPenalty + repeatedPreferencePenalty) * draftHistoryProtection;
 
@@ -120,6 +121,9 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
   if (drafts.length === 0) {
     return [];
   }
+  const leagueSizesByDraftId = new Map(drafts.map((draft) => [draft.id, new Set(draft.picks.map((pick) => pick.fantasyTeam)).size]));
+  const picksByDraftIdAndPlayerKey = new Map(drafts.map((draft) => [draft.id, new Map(draft.picks.map((pick) => [createPlayerKey(pick.playerName, pick.position, pick.nflTeam), pick]))]));
+  const userPicksByDraftId = new Map(drafts.map((draft) => [draft.id, draft.picks.filter((pick) => pick.fantasyTeam === draft.myFantasyTeam)]));
   const playersByName = new Map<string, PlayerAccumulator>();
   for (const draft of drafts) {
     for (const pick of draft.picks) {
@@ -172,7 +176,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
     const myAverageOverallPick = myDraftCount > 0 ? player.myTotalOverallPick / myDraftCount : null;
     const personalWeight = myDraftCount > 0 ? myDraftCount / (myDraftCount + 0.5) : 0;
     const preferredAverageOverallPick = myAverageOverallPick === null ? averageOverallPick : personalWeight * myAverageOverallPick + (1 - personalWeight) * averageOverallPick;
-    const { passOpportunityCount, timesPassed, meaningfulPassCount, meaningfulPasses, personalPassPenalty } = calculatePersonalPassStats(player.playerName, player.position, player.nflTeam, drafts, playersByName, myDraftCount);
+    const { passOpportunityCount, timesPassed, meaningfulPassCount, meaningfulPasses, personalPassPenalty } = calculatePersonalPassStats(player.playerName, player.position, player.nflTeam, drafts, picksByDraftIdAndPlayerKey, userPicksByDraftId, leagueSizesByDraftId, playersByName, myDraftCount);
     let weightedPickTotal = preferredAverageOverallPick * timesDrafted;
 
     for (const draft of drafts) {

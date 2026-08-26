@@ -1,10 +1,10 @@
 "use client";
 
 import { Fragment, useState, useEffect, useMemo } from "react";
-import type { ImportedDraft, PlayerRanking, PositionFilter, RankingSortField, SortDirection, DraftTrackerState, DraftTrackerStatus, DraftTrackerSession } from "@/types/draft";
+import type { PlayerRanking, PositionFilter, RankingSortField, SortDirection, DraftTrackerState, DraftTrackerStatus, DraftTrackerSession } from "@/types/draft";
 import FilterSelect from "@/components/FilterSelect";
 import SortableHeader from "@/components/SortableHeader";
-import { DRAFT_STORAGE_KEY, DRAFT_TRACKER_STORAGE_KEY } from "@/utils/draftStorage";
+import { DRAFT_TRACKER_STORAGE_KEY } from "@/utils/draftStorage";
 import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { positionOptions } from "@/utils/positionOptions";
 import { createRankingsCsv } from "@/utils/createRankingsCsv";
@@ -14,8 +14,8 @@ import { createPlayerSlug } from "@/utils/createPlayerSlug";
 import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
 import { useDraftPools } from "@/hooks/useDraftPools";
+import { useImportedDrafts } from "@/hooks/useImportedDrafts";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Download, Bomb, SlidersHorizontal } from "lucide-react";
 
 type RankingsDisplayProps = {
@@ -23,12 +23,10 @@ type RankingsDisplayProps = {
 };
 
 export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProps) {
-  const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<PositionFilter>("ALL");
   const [sortField, setSortField] = useState<RankingSortField>("finalPersonalizedAdp");
   const [sortDirection, setSortDirection] = useState<SortDirection>("ascending");
   const [searchTerm, setSearchTerm] = useState("");
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [isDraftTrackerModeActive, setIsDraftTrackerModeActive] = useState(false);
   const [draftTrackerState, setDraftTrackerState] = useState<DraftTrackerState>({});
   const [showDraftTrackerExitConfirmation, setShowDraftTrackerExitConfirmation] = useState(false);
@@ -37,7 +35,7 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
   const [selectedDraftPoolSlug, setSelectedDraftPoolSlug] = useState(initialPoolSlug);
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
-  const router = useRouter();
+  const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded } = useImportedDrafts();
   const selectedDraftPool = draftPools.find((draftPool) => createDraftPoolSlug(draftPool.name) === selectedDraftPoolSlug);
   const activePoolSlug = selectedDraftPoolSlug === "all" || selectedDraftPoolSlug === "unassigned" || selectedDraftPool ? selectedDraftPoolSlug : "all";
   const poolFilteredDrafts = useMemo(() => {
@@ -100,29 +98,6 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
       label: `${draftPool.name} (${drafts.filter((draft) => draft.poolId === draftPool.id).length})`,
     })),
   ];
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      try {
-        const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-
-        if (storedValue) {
-          const parsedValue: unknown = JSON.parse(storedValue);
-
-          if (Array.isArray(parsedValue)) {
-            setDrafts(parsedValue as ImportedDraft[]);
-          }
-        }
-      } catch (error) {
-        console.error("Unable to load saved drafts for rankings:", error);
-      } finally {
-        setHasLoaded(true);
-      }
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       try {
@@ -282,9 +257,7 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
     const nextPoolSlug = event.target.value;
     setSelectedDraftPoolSlug(nextPoolSlug);
     const nextUrl = nextPoolSlug === "all" ? "/rankings" : `/rankings?pool=${encodeURIComponent(nextPoolSlug)}`;
-    router.replace(nextUrl, {
-      scroll: false,
-    });
+    window.history.replaceState(null, "", nextUrl);
   }
   return (
     <div className="mt-8">

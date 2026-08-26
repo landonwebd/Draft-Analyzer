@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import type { ImportedDraft } from "@/types/draft";
-import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { createPlayerKey } from "@/utils/createPlayerKey";
 import { createPlayerSlug } from "@/utils/createPlayerSlug";
@@ -10,11 +9,11 @@ import StatCard from "@/components/StatCard";
 import { getPositionColor } from "@/utils/positionStyles";
 import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
 import { useDraftPools } from "@/hooks/useDraftPools";
+import { useImportedDrafts } from "@/hooks/useImportedDrafts";
 import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import ManualAdpSlider from "@/components/ManualAdpSlider";
 import HistoryBackButton from "@/components/HistoryBackButton";
 import FilterSelect from "@/components/FilterSelect";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeftRight, ClipboardList, ArrowRight, Info, ChartColumn, Target, Users, ShieldCheck } from "lucide-react";
 
@@ -24,31 +23,10 @@ type PlayerAnalysisProps = {
 };
 
 export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisProps) {
-  const [drafts, setDrafts] = useState<ImportedDraft[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [selectedPoolSlug, setSelectedPoolSlug] = useState(poolSlug);
   const { overrides, hasLoadedOverrides, updateOverride } = usePlayerRankingOverrides();
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
-  const router = useRouter();
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      try {
-        const storedValue = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-        if (storedValue) {
-          const parsedValue: unknown = JSON.parse(storedValue);
-          if (Array.isArray(parsedValue)) {
-            setDrafts(parsedValue as ImportedDraft[]);
-          }
-        }
-      } catch (error) {
-        console.error("Unable to load saved drafts for player analysis:", error);
-      } finally {
-        setHasLoaded(true);
-      }
-    }, 0);
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
+  const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded } = useImportedDrafts();
   if (!hasLoaded || !hasLoadedOverrides || !hasLoadedDraftPools) {
     return <p>Loading player analysis...</p>;
   }
@@ -58,12 +36,12 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
       return createPlayerSlug(pickPlayerKey) === playerSlug;
     });
   }
-  const selectedDraftPool = draftPools.find((draftPool) => createDraftPoolSlug(draftPool.name) === poolSlug);
+  const selectedDraftPool = draftPools.find((draftPool) => createDraftPoolSlug(draftPool.name) === selectedPoolSlug);
   const unassignedDrafts = drafts.filter((draft) => draft.poolId === undefined);
   const playerAppearsInUnassigned = unassignedDrafts.some(draftContainsPlayer);
   const playerAppearsInSelectedPool = selectedDraftPool ? drafts.some((draft) => draft.poolId === selectedDraftPool.id && draftContainsPlayer(draft)) : false;
   let activePoolSlug = "all";
-  if (poolSlug === "unassigned" && playerAppearsInUnassigned) {
+  if (selectedPoolSlug === "unassigned" && playerAppearsInUnassigned) {
     activePoolSlug = "unassigned";
   } else if (selectedDraftPool && playerAppearsInSelectedPool) {
     activePoolSlug = createDraftPoolSlug(selectedDraftPool.name);
@@ -134,12 +112,11 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
   const overallDraftRange = hasOneOverallDraftPosition ? `${player.earliestOverallPick}` : `${player.earliestOverallPick}–${player.latestOverallPick}`;
   const myDraftRange = player.myEarliestOverallPick === null || player.myLatestOverallPick === null ? "Not drafted" : hasOnePersonalDraftPosition ? `${player.myEarliestOverallPick}` : `${player.myEarliestOverallPick}–${player.myLatestOverallPick}`;
 
-  function handlePlayerPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  function handlePlayerPoolChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextPoolSlug = event.target.value;
+    setSelectedPoolSlug(nextPoolSlug);
     const nextUrl = nextPoolSlug === "all" ? `/players/${playerSlug}` : `/players/${playerSlug}?pool=${encodeURIComponent(nextPoolSlug)}`;
-    router.replace(nextUrl, {
-      scroll: false,
-    });
+    window.history.replaceState(null, "", nextUrl);
   }
 
   return (
@@ -294,23 +271,23 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
               return (
                 <article key={`${meaningfulPass.draftId}-${meaningfulPass.selectedPick.overall}`} className="rounded-xl border border-slate-800 bg-slate-950/60 p-5">
                   <div className="flex items-center justify-between gap-4">
-                    <Link
-                      href={{
-                        pathname: `/players/${selectedPlayerSlug}`,
-                        query: {
-                          pool: poolSlug,
-                        },
-                      }}
-                      className="mt-2 block font-bold text-white hover:text-sky-300"
-                    >
-                      {meaningfulPass.selectedPick.playerName}
+                    <Link href={`/drafts/${meaningfulPass.draftId}`} className="text-xl font-bold text-sky-300 hover:text-sky-200 hover:underline">
+                      {meaningfulPass.draftName}
                     </Link>
                     <span className="text-xs text-slate-500">{meaningfulPass.leagueSize} teams</span>
                   </div>
                   <div className="mt-5 grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
                     <div>
                       <p className="text-xs font-bold tracking-wide text-emerald-400 uppercase">You selected</p>
-                      <Link href={`/drafts/${meaningfulPass.draftId}`} className="font-bold text-sky-300 hover:text-sky-200 hover:underline">
+                      <Link
+                        href={{
+                          pathname: `/players/${selectedPlayerSlug}`,
+                          query: {
+                            pool: activePoolSlug,
+                          },
+                        }}
+                        className="font-bold text-sky-300 hover:text-sky-200 hover:underline"
+                      >
                         {meaningfulPass.selectedPick.playerName}
                       </Link>
                       <p className="mt-1 text-sm text-slate-400">

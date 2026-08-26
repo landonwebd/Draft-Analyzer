@@ -6,13 +6,14 @@ import { Bomb, Settings } from "lucide-react";
 
 type DraftPoolManagerProps = {
   draftPools: DraftPool[];
+  draftPoolStorage: "guest" | "database" | null;
   importedDrafts: ImportedDraft[];
-  onCreateDraftPool: (name: string) => boolean;
-  onDeleteDraftPool: (draftPoolId: string) => void;
-  onRenameDraftPool: (draftPoolId: string, nextName: string) => boolean;
+  onCreateDraftPool: (name: string) => Promise<boolean>;
+  onDeleteDraftPool: (draftPoolId: string) => Promise<boolean>;
+  onRenameDraftPool: (draftPoolId: string, nextName: string) => Promise<boolean>;
 };
 
-export default function DraftPoolManager({ draftPools, importedDrafts, onCreateDraftPool, onRenameDraftPool, onDeleteDraftPool }: DraftPoolManagerProps) {
+export default function DraftPoolManager({ draftPools, draftPoolStorage, importedDrafts, onCreateDraftPool, onRenameDraftPool, onDeleteDraftPool }: DraftPoolManagerProps) {
   const [draftPoolName, setDraftPoolName] = useState("");
   const [createPoolError, setCreatePoolError] = useState("");
   const [editingDraftPoolId, setEditingDraftPoolId] = useState<string | null>(null);
@@ -20,13 +21,13 @@ export default function DraftPoolManager({ draftPools, importedDrafts, onCreateD
   const [renamePoolError, setRenamePoolError] = useState("");
   const [draftPoolPendingDeletion, setDraftPoolPendingDeletion] = useState<DraftPool | null>(null);
   const [showPoolManagement, setShowPoolManagement] = useState(false);
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedName = draftPoolName.trim();
     if (trimmedName === "") {
       return;
     }
-    const poolWasCreated = onCreateDraftPool(trimmedName);
+    const poolWasCreated = await onCreateDraftPool(trimmedName);
     if (!poolWasCreated) {
       setCreatePoolError("Choose a unique pool name containing letters or numbers.");
       return;
@@ -41,11 +42,11 @@ export default function DraftPoolManager({ draftPools, importedDrafts, onCreateD
     setRenamePoolError("");
   }
 
-  function handleSaveRename() {
+  async function handleSaveRename() {
     if (editingDraftPoolId === null) {
       return;
     }
-    const poolWasRenamed = onRenameDraftPool(editingDraftPoolId, draftPoolRename);
+    const poolWasRenamed = await onRenameDraftPool(editingDraftPoolId, draftPoolRename);
     if (!poolWasRenamed) {
       setRenamePoolError("Choose a unique pool name containing letters or numbers.");
       return;
@@ -61,11 +62,14 @@ export default function DraftPoolManager({ draftPools, importedDrafts, onCreateD
     setRenamePoolError("");
   }
 
-  function handleConfirmDeletePool() {
+  async function handleConfirmDeletePool() {
     if (draftPoolPendingDeletion === null) {
       return;
     }
-    onDeleteDraftPool(draftPoolPendingDeletion.id);
+    const poolWasDeleted = await onDeleteDraftPool(draftPoolPendingDeletion.id);
+    if (!poolWasDeleted) {
+      return;
+    }
     setDraftPoolPendingDeletion(null);
   }
 
@@ -75,6 +79,7 @@ export default function DraftPoolManager({ draftPools, importedDrafts, onCreateD
         <div>
           <h2 className="text-2xl font-bold">Draft Pools</h2>
           <p className="mt-2 text-sm text-slate-400">{draftPools.length === 1 ? "1 pool created." : `${draftPools.length} pools created.`} Organize and compare your drafts by league format.</p>
+          <p className="mt-2 text-sm font-medium text-emerald-400">{draftPoolStorage === "database" ? "Pools are saved to your account." : draftPoolStorage === "guest" ? "Pools are saved in this browser." : "Loading pool storage..."}</p>
         </div>
         <button type="button" onClick={() => setShowPoolManagement((currentValue) => !currentValue)} className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-700 px-4 py-3 font-semibold text-slate-300 hover:border-slate-500 hover:bg-slate-800 hover:text-white">
           <Settings size={18} aria-hidden="true" />

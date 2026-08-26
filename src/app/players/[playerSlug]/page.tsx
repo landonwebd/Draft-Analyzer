@@ -1,4 +1,5 @@
 import PlayerAnalysis from "@/components/PlayerAnalysis";
+import SiteHeader from "@/components/SiteHeader";
 
 type PlayerPageProps = {
   params: Promise<{
@@ -14,10 +15,13 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   const { pool } = await searchParams;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-24 text-white">
-      <div className="mx-auto max-w-7xl">
-        <PlayerAnalysis playerSlug={playerSlug} poolSlug={pool ?? "ALL"} />
-      </div>
-    </main>
+    <>
+      <SiteHeader />
+      <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
+        <div className="mx-auto max-w-7xl">
+          <PlayerAnalysis playerSlug={playerSlug} poolSlug={pool ?? "ALL"} />
+        </div>
+      </main>
+    </>
   );
 }
