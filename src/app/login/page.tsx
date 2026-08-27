@@ -5,12 +5,13 @@ import SiteHeader from "@/components/SiteHeader";
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
+    message?: string;
     mode?: string;
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error, mode } = await searchParams;
+  const { error, message, mode } = await searchParams;
   const isSignup = mode === "signup";
 
   return (
@@ -37,6 +38,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </label>
               <input id="password" name="password" type="password" autoComplete={isSignup ? "new-password" : "current-password"} required className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
             </div>
+
+            {message && (
+              <p role="status" className="rounded-lg border border-emerald-900/70 bg-emerald-950/50 px-4 py-3 text-sm text-emerald-300">
+                {message}
+              </p>
+            )}
 
             {error && (
               <p role="alert" className="rounded-lg border border-red-900/70 bg-red-950/50 px-4 py-3 text-sm text-red-300">

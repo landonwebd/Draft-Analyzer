@@ -39,17 +39,31 @@ export async function signup(formData: FormData) {
     redirect("/login?mode=signup&error=Choose a password with at least 8 characters.");
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (!siteUrl) {
+    console.error("NEXT_PUBLIC_SITE_URL is not configured.");
+    redirect("/login?mode=signup&error=Account creation is temporarily unavailable.");
+  }
+
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
+    options: {
+      emailRedirectTo: siteUrl,
+    },
   });
 
   if (error) {
     redirect("/login?mode=signup&error=Unable to create an account.");
   }
 
-  revalidatePath("/", "layout");
-  redirect("/");
+  if (data.session) {
+    revalidatePath("/", "layout");
+    redirect("/");
+  }
+
+  redirect("/login?message=Check your email to confirm your account before signing in.");
 }
