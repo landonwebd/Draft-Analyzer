@@ -1,4 +1,19 @@
+import { getAuthenticatedUserId } from "@/lib/supabase/serverAuth";
+
 export async function GET() {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return Response.json(
+      {
+        error: "Sign in to load FantasyPros player data.",
+      },
+      {
+        status: 401,
+      },
+    );
+  }
+
   const apiKey = process.env.FANTASYPROS_API_KEY;
 
   if (!apiKey) {

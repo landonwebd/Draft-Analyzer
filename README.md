@@ -18,7 +18,7 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 ### Draft importing and organization
 
 - Import multiple RTSports or ESPN draft CSV files at once
-- Import FantasyPros Draft Wizard mocks from a shared draft-board URL
+- Import FantasyPros Draft Wizard mocks from a shared draft-board URL while signed in
 - Review and save pending imports individually
 - Create, rename, and delete Draft Pools for formats such as PPR, Superflex, Best Ball, or custom league groups
 - Assign drafts to pools during import or from saved draft cards and individual draft pages
@@ -73,11 +73,20 @@ ESPN drafts are exported with the included browser bookmarklet. Open `/espn-draf
 
 The ESPN exporter reads the structure of ESPN's draft-results page and may require an update if ESPN changes that page.
 
-### FantasyPros (experimental)
+### FantasyPros (beta)
 
-After completing a Draft Wizard mock draft, open **Draft Board**, select **Share Draft Board**, and paste the resulting public share URL into Draft Analyzer. Illustrated instructions are available at `/fantasypros-import-instructions.html`.
+FantasyPros imports require a Draft Analyzer account. After completing a Draft Wizard mock draft, open **Draft Board**, select **Share Draft Board**, and paste the resulting public share URL into Draft Analyzer. Illustrated instructions are available at `/fantasypros-import-instructions.html`.
 
-This integration uses FantasyPros' public draft-board share flow and an undocumented read endpoint. It may stop working if FantasyPros changes that workflow. A FantasyPros API key is also required to translate player IDs into player information. Player metadata returned by the official FantasyPros API is cached by the server for one week.
+This integration uses FantasyPros' public draft-board share flow and an undocumented read endpoint. It may stop working if FantasyPros changes that workflow. A FantasyPros API key is also required to translate player IDs into player information. The key remains on the server and is never sent to the browser. Player metadata returned by the official FantasyPros API is cached by the server for one week.
+
+Player metadata is provided by [FantasyPros](https://www.fantasypros.com/).
+
+To protect the shared API allowance, the server enforces these per-account limits:
+
+- No more than 5 permitted FantasyPros draft requests during a rolling 10-minute period
+- No more than 25 permitted FantasyPros draft requests during a rolling 24-hour period
+- No repeat request for the same mock-draft URL within one minute
+- No reimporting a FantasyPros draft already saved to the account
 
 ## Personalized ADP
 
@@ -138,6 +147,14 @@ For signed-in users:
 - Guest data remains in the browser if a transfer fails and is removed only after a successful merge
 
 Ranking overrides, excluded players, and active Draft Tracker sessions currently remain browser-specific.
+
+### FantasyPros API security
+
+- Draft and player-data endpoints require an authenticated Supabase session
+- Rate limits are enforced atomically in Postgres for each authenticated user
+- The request-history table is stored in a private schema with Row Level Security enabled and no direct client access
+- The FantasyPros API key uses a server-only environment variable without the `NEXT_PUBLIC_` prefix
+- Duplicate and excessive requests are rejected before contacting FantasyPros
 
 ## Local development
 
@@ -234,5 +251,5 @@ npm run build
 - Guest data is browser-specific until it is moved into an account
 - Ranking overrides, excluded players, and Draft Tracker progress are not yet synchronized between devices
 - Supported CSV formats currently depend on the expected RTSports and ESPN columns
-- The FantasyPros integration is experimental
+- FantasyPros imports are in beta, require an account, and depend on FantasyPros' current share workflow
 - The ESPN bookmarklet depends on ESPN's current page structure

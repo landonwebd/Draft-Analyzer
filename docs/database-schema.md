@@ -2,7 +2,7 @@
 
 ## Data ownership
 
-Every saved draft, draft pool, and player-ranking override belongs to one authenticated user.
+Every draft pool, imported draft, draft pick, and FantasyPros import request stored in Postgres belongs to one authenticated user.
 
 Supabase Auth will manage user accounts in its built-in `auth.users` table. Draft Analyzer will reference those users by their UUID rather than storing passwords or authentication details itself.
 
@@ -13,7 +13,7 @@ The database will store:
 - Draft pools
 - Imported drafts
 - Draft picks
-- Player-ranking overrides
+- FantasyPros import request history used for rate limiting
 
 ## Derived data
 
@@ -30,7 +30,9 @@ These values will continue to be calculated from the user’s drafts and overrid
 
 ## Browser-only data
 
-Draft Tracker sessions will remain in browser storage because they are temporary draft-day state.
+Player-ranking overrides and Draft Tracker sessions currently remain in browser storage.
+
+Player-ranking overrides are planned for a future database migration so signed-in users can synchronize manual ADP adjustments and excluded players across devices.
 
 ## `draft_pools`
 
@@ -87,3 +89,23 @@ The combination of `draft_id` and `overall` is the table’s primary key. An imp
 Deleting an imported draft automatically deletes all picks belonging to it.
 
 Draft picks do not repeat `user_id`. Their ownership is inherited through the parent imported draft, and their Row Level Security policies will verify ownership through that relationship.
+
+## `private.fantasypros_import_requests`
+
+Stores a short-lived record of authenticated FantasyPros draft requests so the server can enforce per-user rate limits.
+
+| Column           | Type          | Rules                                       | Purpose                                |
+| ---------------- | ------------- | ------------------------------------------- | -------------------------------------- |
+| `id`             | `bigint`      | Generated identity; primary key             | Uniquely identifies the request        |
+| `user_id`        | `uuid`        | Required; references the authenticated user | Identifies who made the request        |
+| `mock_draft_key` | `text`        | Required                                    | Identifies the requested mock draft    |
+| `requested_at`   | `timestamptz` | Required; defaults to the current time      | Records when the request was permitted |
+
+Authenticated users will not receive direct table access. A database function will use the authenticated user ID to check recent request counts and record an allowed request atomically.
+
+The initial limits are:
+
+- No more than 5 requests during any rolling 10-minute period
+- No more than 25 requests during any rolling 24-hour period
+
+Old request records may be removed after they are no longer needed for rate limiting.

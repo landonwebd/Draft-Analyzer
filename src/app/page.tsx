@@ -4,13 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import ImportedDraftCard from "@/components/ImportedDraftCard";
 import HomeHero from "@/components/HomeHero";
 import type { ImportedDraft, PendingDraft } from "@/types/draft";
-import type { FantasyProsDraftResponse } from "@/types/fantasyPros";
 import { Bomb, ChevronRight, ChevronLeft, X } from "lucide-react";
 import Link from "next/link";
-import { buildFantasyProsPlayerLookup } from "@/utils/buildFantasyProsPlayerLookup";
-import { convertFantasyProsDraft } from "@/utils/convertFantasyProsDraft";
-import { getFantasyProsPlayers } from "@/utils/getFantasyProsPlayers";
-import { isFantasyProsDraftResponse } from "@/utils/isFantasyProsDraftResponse";
 import DraftPoolManager from "@/components/DraftPoolManager";
 import SiteHeader from "@/components/SiteHeader";
 import { useDraftPools } from "@/hooks/useDraftPools";
@@ -21,6 +16,7 @@ import PendingDraftCard from "@/components/PendingDraftCard";
 import { createFantasyTeamOptions } from "@/utils/createFantasyTeamOptions";
 import FilterSelect from "@/components/FilterSelect";
 import GuestDataTransferBanner from "@/components/GuestDataTransferBanner";
+import FantasyProsImport from "@/components/FantasyProsImport";
 
 const DRAFTS_PER_PAGE = 9;
 
@@ -29,9 +25,6 @@ type DraftSortOption = "newest" | "oldest" | "team-ascending" | "team-descending
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
-  const [fantasyProsUrl, setFantasyProsUrl] = useState("");
-  const [isFantasyProsImporting, setIsFantasyProsImporting] = useState(false);
-  const [fantasyProsImportError, setFantasyProsImportError] = useState("");
   const [showBoomConfirmation, setShowBoomConfirmation] = useState(false);
   const [currentDraftPage, setCurrentDraftPage] = useState(1);
   const [draftSortOption, setDraftSortOption] = useState<DraftSortOption>("newest");
@@ -189,74 +182,6 @@ export default function Home() {
     return pendingDraft.selectedTeam === "" || pendingDraft.picks.length === 0 || pendingDraft.importError !== "" || isDuplicate;
   }
 
-  async function addFantasyProsPendingDraft(draftResponse: FantasyProsDraftResponse, sourceFileName: string) {
-    const playersResponse = await getFantasyProsPlayers();
-    const playerLookup = buildFantasyProsPlayerLookup(playersResponse.players);
-    const convertedPicks = convertFantasyProsDraft(draftResponse, playerLookup);
-
-    const userPick = draftResponse.picks.find((pick) => pick.isUserTeam);
-    const selectedTeam = userPick?.owner ?? "";
-
-    setPendingDrafts((currentDrafts) => [
-      ...currentDrafts,
-      {
-        id: crypto.randomUUID(),
-        fileName: sourceFileName,
-        picks: convertedPicks,
-        selectedTeam,
-        selectedPoolId: "",
-        importError: selectedTeam === "" ? "Unable to identify your FantasyPros team." : "",
-      },
-    ]);
-  }
-
-  async function handleFantasyProsUrlImport() {
-    if (fantasyProsUrl.trim() === "" || isFantasyProsImporting) {
-      return;
-    }
-
-    setFantasyProsImportError("");
-    setIsFantasyProsImporting(true);
-
-    try {
-      const response = await fetch("/api/fantasypros/draft", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: fantasyProsUrl,
-        }),
-      });
-
-      const data: unknown = await response.json();
-
-      if (!response.ok) {
-        const errorMessage = typeof data === "object" && data !== null && "error" in data && typeof data.error === "string" ? data.error : "FantasyPros could not import that draft.";
-
-        setFantasyProsImportError(errorMessage);
-        return;
-      }
-
-      if (!isFantasyProsDraftResponse(data)) {
-        setFantasyProsImportError("FantasyPros returned an unexpected draft format.");
-        return;
-      }
-      const sourceFileName = `fantasypros-${data.mockDraftKey.replace("nfl~", "")}.json`;
-      const draftAlreadyExists = importedDrafts.some((draft) => draft.sourceFileName === sourceFileName) || pendingDrafts.some((draft) => draft.fileName === sourceFileName);
-      if (draftAlreadyExists) {
-        setFantasyProsImportError("This FantasyPros draft has already been imported.");
-        return;
-      }
-      await addFantasyProsPendingDraft(data, sourceFileName);
-      setFantasyProsUrl("");
-    } catch {
-      setFantasyProsImportError("Unable to complete the FantasyPros import. Please try again.");
-    } finally {
-      setIsFantasyProsImporting(false);
-    }
-  }
-
   async function handleMoveGuestDataToAccount(): Promise<boolean> {
     const mergeResult = await moveGuestBrowserDataToAccount(draftPools, importedDrafts);
     if (!mergeResult) {
@@ -310,42 +235,13 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-5">
-                  <h3 id="fantasyProsUrlDescription" className="text-lg font-bold text-white">
-                    FantasyPros Mock <span className="text-sm font-semibold text-red-400">(EXPERIMENTAL)</span>
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Import a completed mock using its{" "}
-                    <Link href="/fantasypros-import-instructions.html" target="_blank" rel="noreferrer" className="font-semibold text-sky-400 underline underline-offset-4 hover:text-sky-300">
-                      FantasyPros second-screen URL
-                    </Link>
-                    .
-                  </p>
-                  <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-                    <input
-                      id="fantasyProsUrl"
-                      type="url"
-                      value={fantasyProsUrl}
-                      onChange={(event) => {
-                        setFantasyProsUrl(event.target.value);
-                        setFantasyProsImportError("");
-                      }}
-                      placeholder="Paste FantasyPros second-screen URL"
-                      aria-labelledby="fantasyProsUrlDescription"
-                      aria-invalid={fantasyProsImportError !== ""}
-                      aria-describedby={fantasyProsImportError ? "fantasyProsImportError" : undefined}
-                      className="min-w-0 flex-1 rounded-lg bg-slate-800 px-4 py-3 text-white placeholder:text-slate-500"
-                    />
-                    <button type="button" onClick={handleFantasyProsUrlImport} aria-disabled={fantasyProsUrl.trim() === "" || isFantasyProsImporting} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${fantasyProsUrl.trim() === "" || isFantasyProsImporting ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
-                      {isFantasyProsImporting ? "Importing..." : "Import draft"}
-                    </button>
-                  </div>
-                  {fantasyProsImportError && (
-                    <p id="fantasyProsImportError" role="alert" className="mt-2 text-sm text-red-300">
-                      {fantasyProsImportError}
-                    </p>
-                  )}
-                </div>
+                <FantasyProsImport
+                  storage={importedDraftStorage}
+                  existingSourceFileNames={[...importedDrafts.map((draft) => draft.sourceFileName), ...pendingDrafts.map((draft) => draft.fileName)]}
+                  onAddPendingDraft={(newDraft) => {
+                    setPendingDrafts((currentDrafts) => [...currentDrafts, newDraft]);
+                  }}
+                />
               </div>
               {pendingDrafts.length > 0 && (
                 <section className="mt-6">

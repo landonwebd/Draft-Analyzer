@@ -6,6 +6,7 @@ import { DRAFT_POOL_STORAGE_KEY } from "@/utils/draftPoolStorage";
 import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import { createDatabaseDraftPool, deleteDatabaseDraftPool, loadDatabaseDraftPools, renameDatabaseDraftPool } from "@/lib/supabase/draftPools";
 import { hasAuthenticatedUser } from "@/lib/supabase/auth";
+import { retryJwtIssuedAtFuture } from "@/lib/supabase/retryJwtIssuedAtFuture";
 
 function isDraftPool(value: unknown): value is DraftPool {
   return typeof value === "object" && value !== null && "id" in value && typeof value.id === "string" && "name" in value && typeof value.name === "string" && value.name.trim() !== "";
@@ -36,7 +37,7 @@ export function useDraftPools() {
         if (userIsAuthenticated) {
           setDraftPoolStorage("database");
 
-          const databaseDraftPools = await loadDatabaseDraftPools();
+          const databaseDraftPools = await retryJwtIssuedAtFuture(loadDatabaseDraftPools);
 
           if (!wasCancelled) {
             setDraftPools(databaseDraftPools);

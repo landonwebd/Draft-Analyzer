@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ImportedDraft } from "@/types/draft";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { hasAuthenticatedUser } from "@/lib/supabase/auth";
+import { retryJwtIssuedAtFuture } from "@/lib/supabase/retryJwtIssuedAtFuture";
 import { createDatabaseImportedDraft, deleteDatabaseImportedDraft, loadDatabaseImportedDrafts, assignDatabaseImportedDraftToPool, deleteDatabaseImportedDrafts } from "@/lib/supabase/importedDrafts";
 
 export function useImportedDrafts() {
@@ -25,7 +26,7 @@ export function useImportedDrafts() {
         if (userIsAuthenticated) {
           setImportedDraftStorage("database");
 
-          const databaseDrafts = await loadDatabaseImportedDrafts();
+          const databaseDrafts = await retryJwtIssuedAtFuture(loadDatabaseImportedDrafts);
 
           if (!wasCancelled) {
             setImportedDrafts(databaseDrafts);
