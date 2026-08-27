@@ -79,7 +79,7 @@ FantasyPros imports require a Draft Analyzer account. After completing a Draft W
 
 This integration uses FantasyPros' public draft-board share flow and an undocumented read endpoint. It may stop working if FantasyPros changes that workflow. A FantasyPros API key is also required to translate player IDs into player information. The key remains on the server and is never sent to the browser. Player metadata returned by the official FantasyPros API is cached by the server for one week.
 
-Player metadata is provided by [FantasyPros](https://www.fantasypros.com/).
+Data provided by the [FantasyPros API](https://www.fantasypros.com/).
 
 To protect the shared API allowance, the server enforces these per-account limits:
 

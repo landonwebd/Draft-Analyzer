@@ -50,6 +50,14 @@
         max-width: 100%;
         padding: 8px;
       }
+
+      .back-link {
+        color: #7dd3fc;
+        display: inline-block;
+        font-weight: 700;
+        margin-top: 28px;
+        text-underline-offset: 4px;
+      }
     </style>
   </head>
   <body>
@@ -68,7 +76,7 @@
 
     <p>The exporter detects league size from the fantasy-team names on the page and creates a stable filename based on the draft contents.</p>
     <p class="notice"><strong>Compatibility note:</strong> This exporter reads ESPN's draft-results page and may need to be updated if ESPN changes its page layout.</p>
-
+    <a class="back-link" href="/">&larr; Back to Draft Analyzer</a>
     <script>
       function exportEspnDraft() {
         var rows = Array.from(document.querySelectorAll(".fixedDataTableCellGroupLayout_cellGroup"));

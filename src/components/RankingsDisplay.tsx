@@ -17,9 +17,11 @@ import { useDraftPools } from "@/hooks/useDraftPools";
 import { useImportedDrafts } from "@/hooks/useImportedDrafts";
 import Link from "next/link";
 import { Download, Bomb, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { RANKINGS_POOL_STORAGE_KEY } from "@/utils/draftPoolStorage";
 
 type RankingsDisplayProps = {
-  initialPoolSlug: string;
+  initialPoolSlug: string | null;
 };
 
 export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProps) {
@@ -32,12 +34,14 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
   const [showDraftTrackerExitConfirmation, setShowDraftTrackerExitConfirmation] = useState(false);
   const [hasLoadedDraftTrackerSession, setHasLoadedDraftTrackerSession] = useState(false);
   const [activeRankingView, setActiveRankingView] = useState<"rankings" | "excluded">("rankings");
-  const [selectedDraftPoolSlug, setSelectedDraftPoolSlug] = useState(initialPoolSlug);
+  const router = useRouter();
+  const selectedDraftPoolSlug = initialPoolSlug ?? "all";
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
   const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded } = useImportedDrafts();
   const selectedDraftPool = draftPools.find((draftPool) => createDraftPoolSlug(draftPool.name) === selectedDraftPoolSlug);
-  const activePoolSlug = selectedDraftPoolSlug === "all" || selectedDraftPoolSlug === "unassigned" || selectedDraftPool ? selectedDraftPoolSlug : "all";
+  const hasUnassignedDrafts = drafts.some((draft) => !draft.poolId);
+  const activePoolSlug = selectedDraftPoolSlug === "all" || (selectedDraftPoolSlug === "unassigned" && hasUnassignedDrafts) || selectedDraftPool ? selectedDraftPoolSlug : "all";
   const poolFilteredDrafts = useMemo(() => {
     if (activePoolSlug === "all") {
       return drafts;
@@ -89,10 +93,14 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
       value: "all",
       label: `All Drafts (${drafts.length})`,
     },
-    {
-      value: "unassigned",
-      label: `Unassigned (${drafts.filter((draft) => !draft.poolId).length})`,
-    },
+    ...(hasUnassignedDrafts
+      ? [
+          {
+            value: "unassigned",
+            label: `Unassigned (${drafts.filter((draft) => !draft.poolId).length})`,
+          },
+        ]
+      : []),
     ...draftPools.map((draftPool) => ({
       value: createDraftPoolSlug(draftPool.name),
       label: `${draftPool.name} (${drafts.filter((draft) => draft.poolId === draftPool.id).length})`,
@@ -126,6 +134,46 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
       window.clearTimeout(timeoutId);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasLoadedDraftPools || !hasLoaded) {
+      return;
+    }
+
+    if (initialPoolSlug === "unassigned" && !hasUnassignedDrafts) {
+      window.localStorage.removeItem(RANKINGS_POOL_STORAGE_KEY);
+      router.replace("/rankings", { scroll: false });
+      return;
+    }
+
+    if (initialPoolSlug !== null) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const storedPoolSlug = window.localStorage.getItem(RANKINGS_POOL_STORAGE_KEY);
+
+      if (!storedPoolSlug || storedPoolSlug === "all") {
+        return;
+      }
+
+      const storedPoolExists = storedPoolSlug === "unassigned" ? hasUnassignedDrafts : draftPools.some((draftPool) => createDraftPoolSlug(draftPool.name) === storedPoolSlug);
+
+      if (!storedPoolExists) {
+        window.localStorage.removeItem(RANKINGS_POOL_STORAGE_KEY);
+        return;
+      }
+
+      router.replace(`/rankings?pool=${encodeURIComponent(storedPoolSlug)}`, {
+        scroll: false,
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [draftPools, hasLoaded, hasLoadedDraftPools, hasUnassignedDrafts, initialPoolSlug, router]);
+
   useEffect(() => {
     if (!hasLoadedDraftTrackerSession) {
       return;
@@ -255,10 +303,11 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
 
   function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextPoolSlug = event.target.value;
-    setSelectedDraftPoolSlug(nextPoolSlug);
     const nextUrl = nextPoolSlug === "all" ? "/rankings" : `/rankings?pool=${encodeURIComponent(nextPoolSlug)}`;
-    window.history.replaceState(null, "", nextUrl);
+    window.localStorage.setItem(RANKINGS_POOL_STORAGE_KEY, nextPoolSlug);
+    router.replace(nextUrl, { scroll: false });
   }
+
   return (
     <div className="mt-8">
       <div role="tablist" aria-label="Player ranking views" className="mb-2 flex border-b border-slate-800">

@@ -20,7 +20,7 @@ export default async function RankingsPage({ searchParams }: RankingsPageProps) 
             <MoveLeft /> Back to imported drafts
           </Link>
           <h1 className="text-4xl font-bold">Draft Rankings</h1>
-          <RankingsDisplay initialPoolSlug={pool ?? "all"} />
+          <RankingsDisplay initialPoolSlug={pool ?? null} />
         </div>
       </main>
     </>

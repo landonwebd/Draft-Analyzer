@@ -101,9 +101,9 @@ export default function FantasyProsImport({ storage, existingSourceFileNames, on
         .
       </p>
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        Player metadata provided by{" "}
+        Data provided by the{" "}
         <Link href="https://www.fantasypros.com/" target="_blank" rel="noreferrer" className="font-semibold text-sky-400 underline underline-offset-4 hover:text-sky-300">
-          FantasyPros
+          FantasyPros API
         </Link>
         .
       </p>

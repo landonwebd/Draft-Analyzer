@@ -17,10 +17,15 @@ import { createFantasyTeamOptions } from "@/utils/createFantasyTeamOptions";
 import FilterSelect from "@/components/FilterSelect";
 import GuestDataTransferBanner from "@/components/GuestDataTransferBanner";
 import FantasyProsImport from "@/components/FantasyProsImport";
+import { DRAFT_SORT_STORAGE_KEY } from "@/utils/draftStorage";
 
 const DRAFTS_PER_PAGE = 9;
 
 type DraftSortOption = "newest" | "oldest" | "team-ascending" | "team-descending";
+
+function isDraftSortOption(value: string | null): value is DraftSortOption {
+  return value === "newest" || value === "oldest" || value === "team-ascending" || value === "team-descending";
+}
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +67,18 @@ export default function Home() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+
+    const timeoutId = window.setTimeout(() => {
+      const storedDraftSortOption = window.localStorage.getItem(DRAFT_SORT_STORAGE_KEY);
+
+      if (isDraftSortOption(storedDraftSortOption)) {
+        setDraftSortOption(storedDraftSortOption);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, []);
   const draftSortOptions = [
     { value: "newest", label: "Newest first" },
@@ -275,7 +292,9 @@ export default function Home() {
                     value={draftSortOption}
                     options={draftSortOptions}
                     onChange={(event) => {
-                      setDraftSortOption(event.target.value as DraftSortOption);
+                      const nextDraftSortOption = event.target.value as DraftSortOption;
+                      setDraftSortOption(nextDraftSortOption);
+                      window.localStorage.setItem(DRAFT_SORT_STORAGE_KEY, nextDraftSortOption);
                       setCurrentDraftPage(1);
                     }}
                   />
