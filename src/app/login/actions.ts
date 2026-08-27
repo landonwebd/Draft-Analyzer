@@ -65,5 +65,5 @@ export async function signup(formData: FormData) {
     redirect("/");
   }
 
-  redirect("/login?message=Check your email to confirm your account before signing in.");
+  redirect("/login?message=Check your email to confirm your account before signing in. If you don't see it, check your spam folder.");
 }
