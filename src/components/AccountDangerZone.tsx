@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { Bomb, X } from "lucide-react";
 import { deleteAccount } from "@/app/account/actions";
+import DeleteAllDraftsControl from "@/components/DeleteAllDraftsControl";
 
 type DeleteAccountSubmitButtonProps = {
   confirmation: string;
@@ -21,7 +22,7 @@ function DeleteAccountSubmitButton({ confirmation, password }: DeleteAccountSubm
   );
 }
 
-export default function DeleteAccountControl() {
+export default function AccountDangerZone() {
   const [dialogIsOpen, setDialogIsOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [password, setPassword] = useState("");
@@ -56,8 +57,8 @@ export default function DeleteAccountControl() {
     <>
       <section className="mt-8 border-t border-red-950 pt-8">
         <h2 className="text-lg font-bold text-red-300">Danger Zone</h2>
+        <DeleteAllDraftsControl />
         <p className="mt-2 text-sm leading-6 text-slate-400">Permanently delete your account and all drafts and Draft Pools saved to it.</p>
-
         <button type="button" onClick={() => setDialogIsOpen(true)} className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-800 px-5 py-3 font-semibold text-red-300 hover:bg-red-950/60">
           <Bomb aria-hidden="true" />
           Delete account

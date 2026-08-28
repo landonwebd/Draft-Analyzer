@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
-import DeleteAccountControl from "@/components/DeleteAccountControl";
+import AccountDangerZone from "@/components/AccountDangerZone";
 
 type AccountPageProps = {
   searchParams: Promise<{
@@ -39,7 +39,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               Sign out
             </button>
           </form>
-          <DeleteAccountControl />
+          <AccountDangerZone />
         </section>
       </main>
     </>

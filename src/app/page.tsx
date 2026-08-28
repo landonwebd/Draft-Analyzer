@@ -328,12 +328,19 @@ export default function Home() {
                 ))}
               </div>
             )}
-            {importedDrafts.length !== 0 && (
-              <button type="button" onClick={() => setShowBoomConfirmation(true)} className={`mt-8 rounded-lg border-2 transition-colors duration-300 border-red-600 px-4 py-3 text-red-400 ${importedDrafts.length === 0 ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-red-500 hover:text-white"}`}>
-                Delete All Drafts
-              </button>
+            {importedDraftStorage === "guest" && importedDrafts.length !== 0 && (
+              <section className="w-full md:w-1/2 lg:w-1/3 mx-auto mt-10 rounded-2xl border border-red-900/70 bg-red-950/20 p-6">
+                <h3 className="text-lg font-bold text-red-300">Danger Zone</h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-400">Permanently delete all imported drafts and their draft picks saved in this browser. Your Draft Pools will not be deleted.</p>
+
+                <button type="button" onClick={() => setShowBoomConfirmation(true)} className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-800 px-5 py-3 font-semibold text-red-300 hover:bg-red-950/60">
+                  <Bomb aria-hidden="true" />
+                  Delete All Drafts
+                </button>
+              </section>
             )}
-            {showBoomConfirmation && (
+            {importedDraftStorage === "guest" && showBoomConfirmation && (
               <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur-sm">
                 <div role="dialog" aria-modal="true" aria-labelledby="boom-dialog-title" className="w-full max-w-md rounded-2xl border border-red-900/70 bg-slate-900 p-6 text-slate-100 shadow-2xl shadow-red-950/50">
                   <div className="mx-auto grid size-14 place-items-center rounded-full border border-red-700 bg-red-950 text-red-300">
@@ -343,7 +350,7 @@ export default function Home() {
                     Delete all imported drafts?
                   </h3>
                   <p className="mt-3 text-center text-slate-300">
-                    You are about to permanently delete all <strong className="text-white">{importedDrafts.length} imported drafts</strong> {importedDraftStorage === "database" ? "from your account." : "from this browser."}
+                    You are about to permanently delete all <strong className="text-white">{importedDrafts.length} imported drafts</strong> from this browser.
                   </p>
                   <p className="mt-3 text-center text-sm font-semibold uppercase tracking-wide text-red-400">This action cannot be undone.</p>
                   <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
