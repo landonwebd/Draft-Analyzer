@@ -15,6 +15,7 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 - Preserve existing account drafts and pool assignments when duplicate guest drafts are skipped
 - Access account data across supported browsers and devices by signing in
 - Require new accounts to confirm their email address before signing in
+- Permanently delete an account and its cloud-saved drafts, Draft Pools, draft picks, and import request history
 
 ### Draft importing and organization
 
@@ -179,6 +180,7 @@ FANTASYPROS_API_KEY=your_api_key_here
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_SECRET_KEY=your_supabase_secret_key
 ```
 
 Do not commit `.env.local`. Environment files are ignored by this repository. The Supabase URL and publishable key are designed for browser use; never expose a database password or Supabase service-role key through a `NEXT_PUBLIC_` variable.
@@ -238,9 +240,12 @@ FANTASYPROS_API_KEY
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 NEXT_PUBLIC_SITE_URL
+SUPABASE_SECRET_KEY
 ```
 
 Configure the production Site URL and allowed redirect URLs under Supabase Authentication settings. Environment-variable changes in Vercel require a new deployment.
+
+The `SUPABASE_SECRET_KEY` bypasses Row Level Security and must remain server-only; never add a `NEXT_PUBLIC_` prefix or expose it to browser code.
 
 Before deployment, verify the current version with:
 
