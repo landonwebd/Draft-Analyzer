@@ -29,7 +29,7 @@ type RankingConfidence = {
 };
 
 const MAX_APPEARANCE_PENALTY = 12;
-const MEANINGFUL_PASS_WEIGHT = 0.75;
+const MEANINGFUL_PASS_WEIGHT = 1.25;
 
 function calculateRankingConfidence(timesDrafted: number, totalDrafts: number): RankingConfidence {
   if (timesDrafted === 0 || totalDrafts === 0) {
