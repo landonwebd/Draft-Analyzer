@@ -5,7 +5,7 @@ import type { ImportedDraft } from "@/types/draft";
 import { DRAFT_STORAGE_KEY } from "@/utils/draftStorage";
 import { hasAuthenticatedUser } from "@/lib/supabase/auth";
 import { retryJwtIssuedAtFuture } from "@/lib/supabase/retryJwtIssuedAtFuture";
-import { createDatabaseImportedDraft, deleteDatabaseImportedDraft, loadDatabaseImportedDrafts, assignDatabaseImportedDraftToPool, deleteDatabaseImportedDrafts } from "@/lib/supabase/importedDrafts";
+import { createDatabaseImportedDraft, deleteDatabaseImportedDraft, loadDatabaseImportedDrafts, assignDatabaseImportedDraftToPool, deleteDatabaseImportedDrafts, renameDatabaseImportedDraft } from "@/lib/supabase/importedDrafts";
 
 export function useImportedDrafts() {
   const [importedDrafts, setImportedDrafts] = useState<ImportedDraft[]>([]);
@@ -157,6 +157,36 @@ export function useImportedDrafts() {
     return true;
   }
 
+  async function renameImportedDraft(draftId: string, nextName: string): Promise<boolean> {
+    const trimmedName = nextName.trim();
+
+    if (importedDraftStorage === null || trimmedName === "" || !importedDrafts.some((draft) => draft.id === draftId)) {
+      return false;
+    }
+
+    if (importedDraftStorage === "database") {
+      try {
+        await renameDatabaseImportedDraft(draftId, trimmedName);
+      } catch (error) {
+        console.error("Unable to rename imported draft:", error);
+        return false;
+      }
+    }
+
+    setImportedDrafts((currentDrafts) =>
+      currentDrafts.map((draft) =>
+        draft.id === draftId
+          ? {
+              ...draft,
+              name: trimmedName,
+            }
+          : draft,
+      ),
+    );
+
+    return true;
+  }
+
   function unassignImportedDraftsFromPool(draftPoolId: string): void {
     setImportedDrafts((currentDrafts) =>
       currentDrafts.map((draft) =>
@@ -188,6 +218,7 @@ export function useImportedDrafts() {
     createImportedDraft,
     deleteImportedDraft,
     assignImportedDraftToPool,
+    renameImportedDraft,
     deleteAllImportedDrafts,
     unassignImportedDraftsFromPool,
     addMergedImportedDrafts,

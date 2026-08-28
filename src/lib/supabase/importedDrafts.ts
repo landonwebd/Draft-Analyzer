@@ -125,3 +125,20 @@ export async function deleteDatabaseImportedDrafts(draftIds: string[]): Promise<
     throw new Error("Unable to delete all database imported drafts: Some drafts were not found.");
   }
 }
+
+export async function renameDatabaseImportedDraft(draftId: string, name: string): Promise<void> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("imported_drafts")
+    .update({
+      name,
+    })
+    .eq("id", draftId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new Error(`Unable to rename database imported draft: ${error?.message ?? "Draft not found."}`);
+  }
+}

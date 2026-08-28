@@ -163,7 +163,12 @@ export default function Home() {
     }
     const importedDraft: ImportedDraft = {
       id: crypto.randomUUID(),
-      name: isFantasyProsDraft ? "FantasyPros Mock Draft" : pendingDraft.fileName.replace(/\.(csv|json)$/i, ""),
+      name: isFantasyProsDraft
+        ? "FantasyPros Mock Draft"
+        : pendingDraft.fileName
+            .replace(/\.(csv|json)$/i, "")
+            .replace(/-+/g, " ")
+            .trim(),
       sourceFileName: pendingDraft.fileName,
       importedAt: new Date().toISOString(),
       myFantasyTeam: pendingDraft.selectedTeam,

@@ -14,6 +14,7 @@ import { getBestAvailablePlayers } from "@/utils/getBestAvailablePlayers";
 import { createDraftPoolSlug } from "@/utils/createDraftPoolSlug";
 import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
 import BestAvailableDisplay from "@/components/BestAvailableDisplay";
+import DraftSettingsControl from "@/components/DraftSettingsControl";
 import { useDraftPools } from "@/hooks/useDraftPools";
 
 type DraftAnalysisProps = {
@@ -29,7 +30,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
   const [bestAvailableSearchTerm, setBestAvailableSearchTerm] = useState("");
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
-  const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded, assignImportedDraftToPool } = useImportedDrafts();
+  const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded, assignImportedDraftToPool, renameImportedDraft } = useImportedDrafts();
   const draftPoolOptions = [
     {
       value: "",
@@ -119,7 +120,10 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
 
   return (
     <section>
-      <h1 className="text-4xl font-bold">{draft.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-4xl font-bold">{draft.name}</h1>
+        <DraftSettingsControl draftName={draft.name} onRename={(nextName) => renameImportedDraft(draft.id, nextName)} />
+      </div>
       <p className="mt-3 text-slate-300">
         Your fantasy team: <span className="font-bold text-white">{draft.myFantasyTeam}</span>
       </p>
