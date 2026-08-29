@@ -93,7 +93,7 @@ Draft picks do not repeat `user_id`. Their ownership is inherited through the pa
 
 ## `private.fantasypros_import_requests`
 
-Stores a short-lived record of authenticated FantasyPros draft requests so the server can enforce per-user rate limits.
+Stores a short-lived record of authenticated FantasyPros draft requests so the server can enforce per-user and application-wide rate limits.
 
 | Column           | Type          | Rules                                       | Purpose                                |
 | ---------------- | ------------- | ------------------------------------------- | -------------------------------------- |
@@ -102,12 +102,13 @@ Stores a short-lived record of authenticated FantasyPros draft requests so the s
 | `mock_draft_key` | `text`        | Required                                    | Identifies the requested mock draft    |
 | `requested_at`   | `timestamptz` | Required; defaults to the current time      | Records when the request was permitted |
 
-Authenticated users will not receive direct table access. A database function will use the authenticated user ID to check recent request counts and record an allowed request atomically.
+Authenticated users will not receive direct table access. A database function will use the authenticated user ID to check per-user and application-wide request counts and record an allowed request atomically.
 
-The initial limits are:
+The limits are:
 
 - No more than 5 requests during any rolling 10-minute period
 - No more than 25 requests during any rolling 24-hour period
+- No more than 400 requests across the entire application during any rolling 24-hour period
 
 Old request records may be removed after they are no longer needed for rate limiting.
 

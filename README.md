@@ -83,12 +83,13 @@ This integration uses FantasyPros' public draft-board share flow and an undocume
 
 Data provided by the [FantasyPros API](https://www.fantasypros.com/).
 
-To protect the shared API allowance, the server enforces these per-account limits:
+To protect FantasyPros services and the shared API allowance, the server enforces per-account and application-wide limits:
 
 - No more than 5 permitted FantasyPros draft requests during a rolling 10-minute period
 - No more than 25 permitted FantasyPros draft requests during a rolling 24-hour period
 - No repeat request for the same mock-draft URL within one minute
 - No reimporting a FantasyPros draft already saved to the account
+- No more than 400 permitted FantasyPros draft requests across the entire application during a rolling 24-hour period
 
 ## Personalized ADP
 
@@ -157,6 +158,7 @@ Ranking overrides, excluded players, and active Draft Tracker sessions currently
 - The request-history table is stored in a private schema with Row Level Security enabled and no direct client access
 - The FantasyPros API key uses a server-only environment variable without the `NEXT_PUBLIC_` prefix
 - Duplicate and excessive requests are rejected before contacting FantasyPros
+- A global rolling limit prevents aggregate traffic from overwhelming the shared FantasyPros integration
 
 ## Local development
 

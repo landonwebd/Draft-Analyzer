@@ -9,7 +9,7 @@ export default function SiteFooter() {
           <Image src="/landon-made-horizontal-dark.svg" alt="Landon Made" width={257} height={45} className="h-auto w-40" />
         </Link>
         <div className="text-center text-xs leading-5 text-slate-500">
-          <p>&copy; 2026 Landon Made</p>
+          <p>&copy; {new Date().getFullYear()} Landon Made</p>
           <p>
             Data provided by the{" "}
             <a href="https://www.fantasypros.com/" target="_blank" rel="noreferrer" className="text-slate-400 underline underline-offset-4 hover:text-slate-300">

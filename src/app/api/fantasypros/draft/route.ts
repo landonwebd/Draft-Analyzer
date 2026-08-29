@@ -104,6 +104,16 @@ export async function POST(request: Request) {
           },
         );
 
+      case "global_daily_limit":
+        return Response.json(
+          {
+            error: "FantasyPros imports are temporarily unavailable because Draft Analyzer has reached its shared daily limit. Please try again later.",
+          },
+          {
+            status: 429,
+          },
+        );
+
       case "daily_limit":
         return Response.json(
           {

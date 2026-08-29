@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 
-const FANTASYPROS_RATE_LIMIT_RESULTS = ["allowed", "unauthorized", "invalid_mock_draft_key", "already_imported", "duplicate_request", "daily_limit", "burst_limit"] as const;
+const FANTASYPROS_RATE_LIMIT_RESULTS = ["allowed", "unauthorized", "invalid_mock_draft_key", "already_imported", "duplicate_request", "daily_limit", "burst_limit", "global_daily_limit"] as const;
 
 export type FantasyProsRateLimitResult = (typeof FANTASYPROS_RATE_LIMIT_RESULTS)[number];
 
