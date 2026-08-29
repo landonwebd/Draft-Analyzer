@@ -119,7 +119,7 @@ export default function FantasyProsImport({ storage, existingSourceFileNames, on
         </div>
       ) : (
         <>
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input
               id="fantasyProsUrl"
               type="url"
@@ -128,7 +128,7 @@ export default function FantasyProsImport({ storage, existingSourceFileNames, on
                 setFantasyProsUrl(event.target.value);
                 setImportError("");
               }}
-              placeholder="Paste FantasyPros second-screen URL"
+              placeholder="Paste FantasyPros URL"
               aria-labelledby="fantasyProsUrlDescription"
               aria-invalid={importError !== ""}
               aria-describedby={importError ? "fantasyProsImportError" : undefined}

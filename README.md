@@ -166,6 +166,7 @@ Ranking overrides, excluded players, and active Draft Tracker sessions currently
 - npm
 - A Supabase project
 - A FantasyPros API key for FantasyPros imports
+- A Resend account with a verified sending domain for contact-form delivery
 
 ### Installation
 
@@ -181,9 +182,14 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SUPABASE_SECRET_KEY=your_supabase_secret_key
+RESEND_API_KEY=your_resend_api_key
+CONTACT_EMAIL_TO=your_contact_destination
+CONTACT_RATE_LIMIT_SECRET=your_random_secret
 ```
 
 Do not commit `.env.local`. Environment files are ignored by this repository. The Supabase URL and publishable key are designed for browser use; never expose a database password or Supabase service-role key through a `NEXT_PUBLIC_` variable.
+
+`RESEND_API_KEY` authorizes server-side contact-form delivery, `CONTACT_EMAIL_TO` identifies the private destination inbox, and `CONTACT_RATE_LIMIT_SECRET` creates one-way request identifiers for abuse prevention. Keep all three values server-only. Use a long, random, project-specific value for `CONTACT_RATE_LIMIT_SECRET`.
 
 Apply the SQL migrations in `supabase/migrations/` to the Supabase project before using account storage.
 
@@ -216,6 +222,7 @@ npm run start  # Run the production build locally
 - Papa Parse
 - Lucide icons
 - Radix UI Slider
+- Resend
 
 ## Project structure
 
@@ -241,6 +248,9 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 NEXT_PUBLIC_SITE_URL
 SUPABASE_SECRET_KEY
+RESEND_API_KEY
+CONTACT_EMAIL_TO
+CONTACT_RATE_LIMIT_SECRET
 ```
 
 Configure the production Site URL and allowed redirect URLs under Supabase Authentication settings. Environment-variable changes in Vercel require a new deployment.

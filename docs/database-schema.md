@@ -2,7 +2,7 @@
 
 ## Data ownership
 
-Every draft pool, imported draft, draft pick, and FantasyPros import request stored in Postgres belongs to one authenticated user.
+Every draft pool, imported draft, draft pick, and FantasyPros import request stored in Postgres belongs to one authenticated user. Anonymous contact-form rate-limit records are stored separately and are not associated with an account.
 
 Supabase Auth will manage user accounts in its built-in `auth.users` table. Draft Analyzer will reference those users by their UUID rather than storing passwords or authentication details itself.
 
@@ -14,6 +14,7 @@ The database will store:
 - Imported drafts
 - Draft picks
 - FantasyPros import request history used for rate limiting
+- Anonymous contact-form request history used for rate limiting
 
 ## Derived data
 
@@ -109,3 +110,22 @@ The initial limits are:
 - No more than 25 requests during any rolling 24-hour period
 
 Old request records may be removed after they are no longer needed for rate limiting.
+
+## `private.contact_form_requests`
+
+Stores anonymous contact-form request records so the server can prevent excessive messages without storing raw IP addresses.
+
+| Column         | Type          | Rules                           | Purpose                                       |
+| -------------- | ------------- | ------------------------------- | --------------------------------------------- |
+| `id`           | `bigint`      | Generated identity; primary key | Uniquely identifies the request               |
+| `request_hash` | `text`        | Required; 64 lowercase hex      | Stores a secret-keyed identifier for limiting |
+| `requested_at` | `timestamptz` | Required; defaults to now       | Records when the request was permitted        |
+
+Browser clients and authenticated users do not receive direct access to this table or its rate-limit function. The server calls the function with the Supabase secret key.
+
+The contact-form limits are:
+
+- No more than 3 messages during any rolling 10-minute period
+- No more than 10 messages during any rolling 24-hour period
+
+The raw request IP address is not stored in this table. Requests outside the active windows are ignored, and expired records for a request source are removed when that source makes a later request.
