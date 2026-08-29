@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { usePathname } from "next/navigation";
 
 export default function AccountStatus() {
   const [email, setEmail] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     let wasCancelled = false;
@@ -36,7 +38,7 @@ export default function AccountStatus() {
       wasCancelled = true;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [pathname]);
 
   if (!hasLoaded) {
     return (
