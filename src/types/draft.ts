@@ -34,6 +34,7 @@ export type PlayerRanking = {
   playerName: string;
   position: Position;
   nflTeam: string;
+  byeWeek: number | null;
   totalDrafts: number;
   timesDrafted: number;
   draftRate: number;
@@ -70,7 +71,7 @@ export type DraftTrackerSession = {
   playerStatuses: DraftTrackerState;
 };
 
-export type RankingSortField = "rank" | "finalPersonalizedAdp" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
+export type RankingSortField = "rank" | "finalPersonalizedAdp" | "byeWeek" | "myDraftCount" | "myAverageOverallPick" | "averageOverallPick" | "draftRate";
 export type SortDirection = "ascending" | "descending";
 
 export type PendingDraft = {

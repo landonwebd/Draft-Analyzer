@@ -133,6 +133,8 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
                 {player.isExcluded ? "Excluded from rankings" : `${player.position}${player.positionRank}`}
                 <span className="mx-2 text-slate-600">•</span>
                 {player.nflTeam}
+                <span className="mx-2 text-slate-600">•</span>
+                Bye {player.byeWeek !== null ? player.byeWeek : "—"}
               </p>
               <div className="mt-5 max-w-sm">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Ranking Pool</p>

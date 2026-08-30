@@ -1,5 +1,6 @@
 import type { DraftPick, ImportedDraft, PlayerRanking, Position, MeaningfulPass, PlayerRankingOverrides, RankingConfidenceLabel } from "@/types/draft";
 import { createPlayerKey } from "@/utils/createPlayerKey";
+import { getNflByeWeek } from "@/utils/getNflByeWeek";
 
 type PlayerAccumulator = {
   playerName: string;
@@ -195,6 +196,7 @@ export function buildPlayerRankings(drafts: ImportedDraft[], overrides: PlayerRa
       playerName: player.playerName,
       position: player.position,
       nflTeam: player.nflTeam,
+      byeWeek: getNflByeWeek(player.nflTeam),
       totalDrafts,
       timesDrafted,
       draftRate,

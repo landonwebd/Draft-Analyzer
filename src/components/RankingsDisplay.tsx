@@ -19,6 +19,7 @@ import Link from "next/link";
 import { Download, Bomb, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RANKINGS_POOL_STORAGE_KEY } from "@/utils/draftPoolStorage";
+import { getPositionColor } from "@/utils/positionStyles";
 
 type RankingsDisplayProps = {
   initialPoolSlug: string | null;
@@ -399,8 +400,9 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
             <colgroup>
               {isDraftTrackerModeActive && <col className="w-36" />}
               <col className="w-36" />
-              <col className="w-64" />
+              <col className="w-56" />
               <col className="w-24" />
+              <col className="w-16" />
               <col className="w-28" />
               <col className="w-32" />
               <col className="w-32" />
@@ -414,6 +416,7 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
                   Player <span className="text-xs font-normal">(meaningful pass)</span>
                 </th>
                 <th className="px-3 py-2">Position</th>
+                <SortableHeader label="Bye" field="byeWeek" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
                 <SortableHeader label="My Drafts" field="myDraftCount" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
                 <SortableHeader label="My Avg. Pick" field="myAverageOverallPick" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
                 <SortableHeader label="Overall Avg." field="averageOverallPick" activeField={sortField} sortDirection={sortDirection} onSort={handleSort} align="right" />
@@ -434,7 +437,7 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
                   <Fragment key={playerKey}>
                     {startsNewTier && (
                       <tr>
-                        <td colSpan={isDraftTrackerModeActive ? 8 : 7} className="bg-slate-800 px-3 py-1 text-sm font-bold uppercase tracking-wide text-sky-300">
+                        <td colSpan={isDraftTrackerModeActive ? 9 : 8} className="bg-slate-800 px-3 py-1 text-sm font-bold uppercase tracking-wide text-sky-300">
                           Tier {player.tier}
                         </td>
                       </tr>
@@ -476,9 +479,12 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
                         </div>
                       </td>
                       <td className="px-3 py-1 tabular-nums" title={`${player.position} rank ${player.positionRank}`}>
-                        {player.position}
-                        {player.positionRank}
+                        <div className={`w-fit py-0.5 px-2 rounded-full ${getPositionColor(player.position)}`}>
+                          {player.position}
+                          {player.positionRank}
+                        </div>
                       </td>
+                      <td className="px-3 py-1 text-right tabular-nums">{player.byeWeek !== null ? player.byeWeek : "—"}</td>
                       <td className="px-3 py-1 text-right tabular-nums">{player.myDraftCount}</td>
                       <td className="px-3 py-1 text-right tabular-nums">{player.myAverageOverallPick === null ? "—" : player.myAverageOverallPick.toFixed(1)}</td>
                       <td className="px-3 py-1 text-right tabular-nums">{player.averageOverallPick.toFixed(1)}</td>
