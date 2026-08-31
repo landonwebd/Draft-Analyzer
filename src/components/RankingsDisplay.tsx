@@ -20,6 +20,7 @@ import { Download, Bomb, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RANKINGS_POOL_STORAGE_KEY } from "@/utils/draftPoolStorage";
 import { getPositionColor } from "@/utils/positionStyles";
+import { createRtSportsRankingsCsv, getUnmatchedRtSportsPlayerNames } from "@/utils/createRtSportsRankingsCsv";
 
 type RankingsDisplayProps = {
   initialPoolSlug: string | null;
@@ -54,6 +55,7 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
   }, [drafts, activePoolSlug, selectedDraftPool]);
   const rankings = useMemo(() => buildPlayerRankings(poolFilteredDrafts, overrides), [poolFilteredDrafts, overrides]);
   const visibleRankings = rankings.filter((player) => !player.isExcluded);
+  const unmatchedRtSportsPlayerNames = getUnmatchedRtSportsPlayerNames(visibleRankings);
   const excludedRankings = rankings.filter((player) => player.isExcluded);
   const hasDraftTrackerProgress = Object.keys(draftTrackerState).length > 0;
   const positionFilteredRankings = selectedPosition === "ALL" ? visibleRankings : visibleRankings.filter((player) => player.position === selectedPosition);
@@ -247,6 +249,27 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
     window.URL.revokeObjectURL(downloadUrl);
   }
 
+  function handleExportRtSportsRankings() {
+    if (visibleRankings.length === 0) {
+      return;
+    }
+
+    const csvContent = createRtSportsRankingsCsv(visibleRankings);
+
+    const csvBlob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const downloadUrl = window.URL.createObjectURL(csvBlob);
+    const downloadLink = document.createElement("a");
+
+    downloadLink.href = downloadUrl;
+    downloadLink.download = "rtsports-personalized-rankings.csv";
+    downloadLink.click();
+
+    window.URL.revokeObjectURL(downloadUrl);
+  }
+
   function handleDraftTrackerModeChange() {
     if (!isDraftTrackerModeActive) {
       setIsDraftTrackerModeActive(true);
@@ -321,7 +344,7 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
       </div>
       <div role="tabpanel" id="rankings-panel" aria-labelledby="rankings-tab" hidden={activeRankingView !== "rankings"}>
         <div className="bg-slate-950 xl:sticky xl:top-0 xl:z-40 xl:py-3">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(5,auto)]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(6,auto)]">
             <FilterSelect id="rankingDraftPoolFilter" label="Choose a draft pool" value={activePoolSlug} options={draftPoolOptions} onChange={handleDraftPoolChange} />
             <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
             <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
@@ -330,6 +353,10 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
             </button>
             <button type="button" onClick={handleExportRankings} aria-label="Export rankings as CSV" title="Export rankings as CSV" aria-disabled={sortedRankings.length === 0} className="w-fit rounded-lg border border-slate-700 px-4 py-3 text-slate-300 cursor-pointer hover:bg-slate-800">
               <Download />
+            </button>
+            <button type="button" onClick={handleExportRtSportsRankings} aria-disabled={visibleRankings.length === 0} className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-4 py-3 text-slate-300 hover:bg-slate-800">
+              <Download size={18} aria-hidden="true" />
+              Export for RT Sports
             </button>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl bg-slate-900 p-4">
@@ -364,6 +391,19 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
             <span className="font-semibold">Tiers:</span> <span className="text-sky-300">Meaningful</span> gaps between players create a new tier. Tiers only display when sorting by Personalized ADP.
           </p>
         </div>
+        {unmatchedRtSportsPlayerNames.length > 0 && (
+          <details className="mt-4 rounded-xl border border-amber-700/50 bg-amber-950/30 p-4 text-amber-100">
+            <summary className="cursor-pointer font-semibold">
+              {unmatchedRtSportsPlayerNames.length} {unmatchedRtSportsPlayerNames.length === 1 ? "player was" : "players were"} not included in the RT Sports export
+            </summary>
+            <p className="mt-3 text-sm text-amber-200/80">No matching RT Sports ID was found for:</p>
+            <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              {unmatchedRtSportsPlayerNames.map((playerName) => (
+                <li key={playerName}>{playerName}</li>
+              ))}
+            </ul>
+          </details>
+        )}
         {showDraftTrackerExitConfirmation && (
           <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <div role="dialog" aria-modal="true" aria-labelledby="draft-tracker-exit-dialog-title" className="w-full max-w-md rounded-2xl border border-red-900/70 bg-slate-900 p-6 text-slate-100 shadow-2xl shadow-red-950/50">
