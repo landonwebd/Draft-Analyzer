@@ -164,7 +164,7 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
           <div>
             <h2 className="font-bold">Manual Ranking Override</h2>
-            <p className="mt-1 text-sm text-slate-400">Move this player in your rankings.</p>
+            <p className="mt-1 text-sm text-slate-400">Adjust this player&apos;s ranking up or down.</p>
           </div>
           <ManualAdpSlider
             key={playerKey}

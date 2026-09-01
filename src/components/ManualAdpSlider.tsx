@@ -2,27 +2,35 @@
 
 import { useState } from "react";
 import * as Slider from "@radix-ui/react-slider";
+import { MANUAL_ADP_ADJUSTMENT_MAX, MANUAL_ADP_ADJUSTMENT_MIN } from "@/utils/playerRankingOverrideStorage";
+import { MoveUp, MoveDown } from "lucide-react";
 
 type ManualAdpSliderProps = {
   initialValue: number;
   onCommit: (value: number) => void;
 };
 
-const adjustmentMarks = [-30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30];
+const adjustmentMarks = [-100, -75, -50, -25, 0, 25, 50, 75, 100];
 
 export default function ManualAdpSlider({ initialValue, onCommit }: ManualAdpSliderProps) {
   const [value, setValue] = useState(initialValue);
-  const formattedAdjustment = value > 0 ? `+${value}` : `${value}`;
+  const formattedAdjustment = value > 0 ? `Move down ${value}` : `Move up ${Math.abs(value)}`;
   const adjustmentLabel = value === 0 ? "No adjustment" : `${formattedAdjustment} ${Math.abs(value) === 1 ? "pick" : "picks"}`;
 
   return (
     <div className="mt-5">
-      <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex gap-2 justify-between">
+        <span className="flex gap-2 items-center rounded-full bg-sky-500/10 px-3 py-1 text-sm font-bold text-sky-300">
+          <MoveUp size={16} /> <span className="hidden md:block">Move Up Rankings</span>
+        </span>
         <output className="rounded-full bg-sky-500/10 px-3 py-1 text-sm font-bold text-sky-300">{adjustmentLabel}</output>
+        <span className="flex gap-2 items-center rounded-full bg-sky-500/10 px-3 py-1 text-sm font-bold text-sky-300">
+          <span className="hidden md:block">Move Down Rankings</span> <MoveDown size={16} />
+        </span>
       </div>
       <Slider.Root
-        min={-30}
-        max={30}
+        min={MANUAL_ADP_ADJUSTMENT_MIN}
+        max={MANUAL_ADP_ADJUSTMENT_MAX}
         step={1}
         value={[value]}
         onValueChange={([nextValue]) => {
@@ -34,16 +42,14 @@ export default function ManualAdpSlider({ initialValue, onCommit }: ManualAdpSli
         aria-label="Manual ADP adjustment"
         className="relative flex h-6 w-full touch-none items-center select-none"
       >
-        <Slider.Track className="relative h-2 grow overflow-hidden rounded-full bg-slate-700">
-          <Slider.Range className="absolute h-full bg-sky-500" />
-        </Slider.Track>
+        <Slider.Track className="relative h-2 grow overflow-hidden rounded-full bg-gradient-to-r from-emerald-500 via-sky-500 to-red-500"></Slider.Track>
 
         <Slider.Thumb className="block size-5 rounded-full border-2 border-sky-300 bg-slate-950 shadow-md outline-none focus-visible:ring-2 focus-visible:ring-sky-400" />
       </Slider.Root>
 
-      <div aria-hidden="true" className="relative left-[calc(50%-10px)] mt-1 h-7">
+      <div aria-hidden="true" className="relative mt-1 h-7">
         {adjustmentMarks.map((mark) => {
-          const percentage = (mark / 60) * 100;
+          const percentage = ((mark - MANUAL_ADP_ADJUSTMENT_MIN) / (MANUAL_ADP_ADJUSTMENT_MAX - MANUAL_ADP_ADJUSTMENT_MIN)) * 100;
           // 20px matches the width of your size-5 Radix thumb
           const thumbWidth = 20;
           return (

@@ -2,7 +2,7 @@
 
 ## Data ownership
 
-Every draft pool, imported draft, draft pick, and FantasyPros import request stored in Postgres belongs to one authenticated user. Anonymous contact-form rate-limit records are stored separately and are not associated with an account.
+Every draft pool, imported draft, draft pick, player-ranking override, and FantasyPros import request stored in Postgres belongs to one authenticated user. Anonymous contact-form rate-limit records are stored separately and are not associated with an account.
 
 Supabase Auth will manage user accounts in its built-in `auth.users` table. Draft Analyzer will reference those users by their UUID rather than storing passwords or authentication details itself.
 
@@ -15,6 +15,7 @@ The database will store:
 - Draft picks
 - FantasyPros import request history used for rate limiting
 - Anonymous contact-form request history used for rate limiting
+- Player-ranking overrides
 
 ## Derived data
 
@@ -31,9 +32,11 @@ These values will continue to be calculated from the user’s drafts and overrid
 
 ## Browser-only data
 
-Player-ranking overrides and Draft Tracker sessions currently remain in browser storage.
+Draft Tracker sessions remain in browser storage.
 
-Player-ranking overrides are planned for a future database migration so signed-in users can synchronize manual ADP adjustments and excluded players across devices.
+Player-ranking overrides remain in browser storage for anonymous users. Signed-in users store overrides in Postgres so manual ADP adjustments and excluded-player settings synchronize across devices.
+
+When a signed-in user has existing browser overrides, the application will merge them into Postgres and remove the browser copy only after the migration succeeds.
 
 ## `draft_pools`
 
@@ -90,6 +93,24 @@ The combination of `draft_id` and `overall` is the table’s primary key. An imp
 Deleting an imported draft automatically deletes all picks belonging to it.
 
 Draft picks do not repeat `user_id`. Their ownership is inherited through the parent imported draft, and their Row Level Security policies will verify ownership through that relationship.
+
+## `player_ranking_overrides`
+
+Stores the manual changes a signed-in user applies to an individual player’s calculated ranking.
+
+| Column                  | Type          | Rules                                         | Purpose                                  |
+| ----------------------- | ------------- | --------------------------------------------- | ---------------------------------------- |
+| `user_id`               | `uuid`        | Required; references the authenticated user   | Identifies who owns the override         |
+| `player_key`            | `text`        | Required; non-empty                           | Identifies the normalized player         |
+| `manual_adp_adjustment` | `integer`     | Required; defaults to 0; between -100 and 100 | Moves the player’s Personalized ADP      |
+| `is_excluded`           | `boolean`     | Required; defaults to false                   | Removes the player from visible rankings |
+| `updated_at`            | `timestamptz` | Required; defaults to the current time        | Records when the override last changed   |
+
+The combination of `user_id` and `player_key` is the table’s primary key. Different users may override the same player independently.
+
+Rows containing the default state—an adjustment of 0 and `is_excluded` set to false—will not be stored. Returning a player to the default state deletes that player’s override row.
+
+Authenticated users may view, create, update, and delete only their own override rows. Anonymous users receive no table access.
 
 ## `private.fantasypros_import_requests`
 
