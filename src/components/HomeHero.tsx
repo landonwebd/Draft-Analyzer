@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Files, Layers3, Upload } from "lucide-react";
+import { BarChart3, Files, Layers3, Upload, MoveRight } from "lucide-react";
 
 type HomeHeroProps = {
   rankingsAreAvailable: boolean;
@@ -11,7 +11,7 @@ type HomeHeroProps = {
 export default function HomeHero({ rankingsAreAvailable, draftCount, poolCount, onImportDraft }: HomeHeroProps) {
   return (
     <section>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-stretch">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-stretch">
         <div>
           <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">Fantasy Football</p>
           <h1 className="mt-4 text-5xl font-bold tracking-tight sm:text-6xl">Draft Analyzer 1.0</h1>
@@ -49,10 +49,19 @@ export default function HomeHero({ rankingsAreAvailable, draftCount, poolCount, 
               <p className="mt-1 text-sm text-slate-400">{poolCount === 1 ? "Pool" : "Pools"}</p>
             </div>
           </div>
-          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-            <p className="text-sm text-slate-400">Draft Rankings</p>
-            <p className={`mt-1 font-semibold ${rankingsAreAvailable ? "text-emerald-400" : "text-slate-500"}`}>{rankingsAreAvailable ? "Ready to analyze" : "Import a draft to begin"}</p>
-          </div>
+          {rankingsAreAvailable ? (
+            <Link href="/analysis" className="group mt-4 block rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition-colors hover:border-emerald-700 hover:bg-slate-950">
+              <p className="text-sm text-slate-400 group-hover:text-slate-300">Overall Draft Analysis</p>
+              <p className="flex items-center gap-2 mt-1 font-semibold text-emerald-400">
+                Explore your drafting tendencies <MoveRight aria-hidden="true" />
+              </p>
+            </Link>
+          ) : (
+            <div aria-disabled="true" className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+              <p className="text-sm text-slate-400">Overall Draft Analysis</p>
+              <p className="mt-1 font-semibold text-slate-500">Import a draft to begin</p>
+            </div>
+          )}
         </aside>
       </div>
     </section>
