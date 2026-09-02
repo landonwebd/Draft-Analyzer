@@ -60,7 +60,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               {isSignup ? "Sign in" : "Create an account"}
             </Link>
           </p>
-
+          {!isSignup && (
+            <p className="mt-3 text-sm text-slate-400">
+              Forgot your password?{" "}
+              <Link href="/forgot-password" className="font-semibold text-emerald-400 hover:text-emerald-300">
+                Reset it
+              </Link>
+            </p>
+          )}
           <Link href="/" className="mt-4 inline-block text-sm font-semibold text-sky-400 hover:text-sky-300">
             Return home
           </Link>

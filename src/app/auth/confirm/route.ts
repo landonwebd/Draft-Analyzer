@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get("type") as EmailOtpType | null;
   const redirectTo = request.nextUrl.clone();
 
-  redirectTo.pathname = "/account";
+  redirectTo.pathname = type === "recovery" ? "/account/update-password" : "/account";
   redirectTo.searchParams.delete("token_hash");
   redirectTo.searchParams.delete("type");
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   redirectTo.pathname = "/login";
-  redirectTo.searchParams.set("error", "This confirmation link is invalid or has expired.");
+  redirectTo.searchParams.set("error", "This authentication link is invalid or has expired.");
 
   return NextResponse.redirect(redirectTo);
 }
