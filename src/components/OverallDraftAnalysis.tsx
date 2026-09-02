@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from "react";
 import FilterSelect from "@/components/FilterSelect";
-import FirstRoundPositionBySlotChart from "@/components/FirstRoundPositionBySlotChart";
+import PositionBySlotAndRoundChart from "@/components/PositionBySlotAndRoundChart";
 import { useImportedDrafts } from "@/hooks/useImportedDrafts";
 import { useDraftPools } from "@/hooks/useDraftPools";
 import { buildDraftSlotCounts } from "@/utils/buildDraftSlotCounts";
-import { buildFirstRoundPositionBySlot } from "@/utils/buildFirstRoundPositionBySlot";
+import { buildPositionBySlotAndRound } from "@/utils/buildPositionBySlotAndRound";
 import { ANALYSIS_POOL_STORAGE_KEY } from "@/utils/draftPoolStorage";
+import { getDraftLeagueSize } from "@/utils/getDraftLeagueSize";
 
 export default function OverallDraftAnalysis() {
   const { importedDrafts, hasLoadedImportedDrafts } = useImportedDrafts();
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
   const [selectedDraftPoolId, setSelectedDraftPoolId] = useState("all");
+  const [selectedLeagueSize, setSelectedLeagueSize] = useState("all");
   const [hasLoadedSelectedDraftPool, setHasLoadedSelectedDraftPool] = useState(false);
   const hasUnassignedDrafts = importedDrafts.some((draft) => !draft.poolId);
   const draftPoolOptions = [
@@ -53,18 +55,39 @@ export default function OverallDraftAnalysis() {
     };
   }, [draftPools, hasLoadedDraftPools, hasLoadedImportedDrafts, hasUnassignedDrafts]);
 
-  let filteredDrafts = importedDrafts;
+  let poolFilteredDrafts = importedDrafts;
+
   if (selectedDraftPoolId === "unassigned") {
-    filteredDrafts = importedDrafts.filter((draft) => !draft.poolId);
+    poolFilteredDrafts = importedDrafts.filter((draft) => !draft.poolId);
   } else if (selectedDraftPoolId !== "all") {
-    filteredDrafts = importedDrafts.filter((draft) => draft.poolId === selectedDraftPoolId);
+    poolFilteredDrafts = importedDrafts.filter((draft) => draft.poolId === selectedDraftPoolId);
   }
+
+  const recognizedLeagueSizes = Array.from(new Set(poolFilteredDrafts.map(getDraftLeagueSize).filter((leagueSize) => leagueSize > 0))).sort((firstSize, secondSize) => firstSize - secondSize);
+
+  const leagueSizeOptions = [
+    {
+      value: "all",
+      label: `All League Sizes (${poolFilteredDrafts.length})`,
+    },
+    ...recognizedLeagueSizes.map((leagueSize) => {
+      const draftCount = poolFilteredDrafts.filter((draft) => getDraftLeagueSize(draft) === leagueSize).length;
+
+      return {
+        value: String(leagueSize),
+        label: `${leagueSize}-Team Leagues (${draftCount})`,
+      };
+    }),
+  ];
+
+  const filteredDrafts = selectedLeagueSize === "all" ? poolFilteredDrafts : poolFilteredDrafts.filter((draft) => getDraftLeagueSize(draft) === Number(selectedLeagueSize));
+
   if (!hasLoadedImportedDrafts || !hasLoadedDraftPools || !hasLoadedSelectedDraftPool) {
     return <p className="mt-8 text-slate-400">Loading draft analysis…</p>;
   }
   const draftSlotCounts = buildDraftSlotCounts(filteredDrafts);
   const largestDraftSlotCount = Math.max(...draftSlotCounts.map((slotCount) => slotCount.draftCount), 0);
-  const firstRoundPositionBySlot = buildFirstRoundPositionBySlot(filteredDrafts);
+  const positionBySlotAndRound = buildPositionBySlotAndRound(filteredDrafts);
 
   if (importedDrafts.length === 0) {
     return (
@@ -81,19 +104,36 @@ export default function OverallDraftAnalysis() {
       <p className="mt-2 text-3xl font-bold">
         Analyzing {filteredDrafts.length} {filteredDrafts.length === 1 ? "draft" : "drafts"}
       </p>
-      <div className="mt-6 max-w-sm">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Pool</p>
-        <FilterSelect
-          id="analysisDraftPool"
-          label="Choose a draft pool to analyze"
-          value={selectedDraftPoolId}
-          options={draftPoolOptions}
-          onChange={(event) => {
-            const nextDraftPoolId = event.target.value;
-            setSelectedDraftPoolId(nextDraftPoolId);
-            window.localStorage.setItem(ANALYSIS_POOL_STORAGE_KEY, nextDraftPoolId);
-          }}
-        />
+      <div className="mt-6 grid max-w-2xl gap-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Pool</p>
+          <FilterSelect
+            id="analysisDraftPool"
+            label="Choose a draft pool to analyze"
+            value={selectedDraftPoolId}
+            options={draftPoolOptions}
+            onChange={(event) => {
+              const nextDraftPoolId = event.target.value;
+              setSelectedDraftPoolId(nextDraftPoolId);
+              setSelectedLeagueSize("all");
+              window.localStorage.setItem(ANALYSIS_POOL_STORAGE_KEY, nextDraftPoolId);
+            }}
+          />
+        </div>
+        {recognizedLeagueSizes.length > 1 && (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">League Size</p>
+            <FilterSelect
+              id="analysisLeagueSize"
+              label="Choose a league size to analyze"
+              value={selectedLeagueSize}
+              options={leagueSizeOptions}
+              onChange={(event) => {
+                setSelectedLeagueSize(event.target.value);
+              }}
+            />
+          </div>
+        )}
       </div>
       <div className="mt-8">
         <h2 className="text-xl font-bold">Draft Slot History</h2>
@@ -115,7 +155,7 @@ export default function OverallDraftAnalysis() {
           })}
         </dl>
       </div>
-      <FirstRoundPositionBySlotChart slotBreakdowns={firstRoundPositionBySlot} />
+      <PositionBySlotAndRoundChart slotBreakdowns={positionBySlotAndRound} />
     </section>
   );
 }
