@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import type { ImportedDraft } from "@/types/draft";
 import { buildPlayerRankings } from "@/utils/buildPlayerRankings";
 import { createPlayerKey } from "@/utils/createPlayerKey";
@@ -112,8 +112,8 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
   const overallDraftRange = hasOneOverallDraftPosition ? `${player.earliestOverallPick}` : `${player.earliestOverallPick}–${player.latestOverallPick}`;
   const myDraftRange = player.myEarliestOverallPick === null || player.myLatestOverallPick === null ? "Not drafted" : hasOnePersonalDraftPosition ? `${player.myEarliestOverallPick}` : `${player.myEarliestOverallPick}–${player.myLatestOverallPick}`;
 
-  function handlePlayerPoolChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextPoolSlug = event.target.value;
+  function handlePlayerPoolChange(value: string) {
+    const nextPoolSlug = value;
     setSelectedPoolSlug(nextPoolSlug);
     const nextUrl = nextPoolSlug === "all" ? `/players/${playerSlug}` : `/players/${playerSlug}?pool=${encodeURIComponent(nextPoolSlug)}`;
     window.history.replaceState(null, "", nextUrl);
@@ -138,7 +138,7 @@ export default function PlayerAnalysis({ playerSlug, poolSlug }: PlayerAnalysisP
               </p>
               <div className="mt-5 max-w-sm">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Ranking Pool</p>
-                <FilterSelect id="playerRankingPool" label={`Choose a ranking pool for ${player.playerName}`} value={activePoolSlug} options={playerPoolOptions} onChange={handlePlayerPoolChange} />
+                <FilterSelect id="playerRankingPool" label={`Choose a ranking pool for ${player.playerName}`} value={activePoolSlug} options={playerPoolOptions} onValueChange={handlePlayerPoolChange} />
               </div>
             </div>
           </div>

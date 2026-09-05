@@ -16,6 +16,7 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 - Access account data across supported browsers and devices by signing in
 - Require new accounts to confirm their email address before signing in
 - Permanently delete an account and its cloud-saved drafts, Draft Pools, draft picks, and import request history
+- Reset a forgotten password through a secure emailed recovery link
 
 ### Draft importing and organization
 
@@ -33,6 +34,9 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 - View the best ranked players who went undrafted in a selected draft
 - Follow player links between rankings, draft rosters, Best Available results, and player-detail pages
 - Preserve useful browser-history navigation across draft and player pages
+- Switch directly between imported leagues from an individual draft page
+- Analyze draft-slot frequency and position tendencies across multiple rounds
+- Scope overall analysis by Draft Pool and detected league size
 
 ### Personalized rankings
 
@@ -45,6 +49,9 @@ Live app: [draft-analyzer-puce.vercel.app](https://draft-analyzer-puce.vercel.ap
 - Manually move a player up or down the board with an ADP adjustment
 - Exclude unavailable or unwanted players while retaining an interface for restoring them
 - Export personalized rankings, confidence data, penalties, and draft ranges as a CSV file
+- Synchronize manual ranking adjustments and exclusions across devices for signed-in users
+- Export rankings in an RTSports-compatible CSV format using matched player IDs
+- Display 2026 NFL bye weeks throughout rankings and player analysis
 
 ### Draft-day tools
 
@@ -149,7 +156,7 @@ For signed-in users:
 - Existing guest data can be merged into an account without overwriting matching account drafts
 - Guest data remains in the browser if a transfer fails and is removed only after a successful merge
 
-Ranking overrides, excluded players, and active Draft Tracker sessions currently remain browser-specific.
+For signed-in users, manual ranking adjustments and player exclusions are synchronized through Supabase. Guest ranking overrides and active Draft Tracker sessions remain browser-specific.
 
 ### FantasyPros API security
 
@@ -223,7 +230,7 @@ npm run start  # Run the production build locally
 - Supabase SSR
 - Papa Parse
 - Lucide icons
-- Radix UI Slider
+- Radix UI Slider and Select
 - Resend
 
 ## Project structure

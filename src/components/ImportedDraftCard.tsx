@@ -85,7 +85,7 @@ export default function ImportedDraftCard({ draft, onDelete, draftPools, onAssig
         )}
         <div className="mt-5">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Pool</p>
-          <FilterSelect id={`draft-pool-${draft.id}`} label={`Draft pool for ${draft.name}`} value={draft.poolId ?? ""} options={draftPoolOptions} onChange={(event) => onAssignDraftToPool(draft.id, event.target.value === "" ? undefined : event.target.value)} />
+          <FilterSelect id={`draft-pool-${draft.id}`} label={`Draft pool for ${draft.name}`} value={draft.poolId ?? ""} options={draftPoolOptions} onValueChange={(value) => onAssignDraftToPool(draft.id, value === "" ? undefined : value)} />
         </div>
         <div className="flex gap-4 mt-5">
           {hiddenPlayerCount > 0 && (

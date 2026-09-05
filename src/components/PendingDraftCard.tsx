@@ -25,9 +25,9 @@ export default function PendingDraftCard({ pendingDraft, teamOptions, poolOption
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
           Choose Fantasy Team <span className="text-sky-500">*</span>
         </p>
-        <FilterSelect id={`pendingTeam-${pendingDraft.id}`} label={`Select your team for ${pendingDraft.fileName}`} value={pendingDraft.selectedTeam} options={teamOptions} onChange={(event) => onTeamChange(pendingDraft.id, event.target.value)} />
+        <FilterSelect id={`pendingTeam-${pendingDraft.id}`} label={`Select your team for ${pendingDraft.fileName}`} value={pendingDraft.selectedTeam} options={teamOptions} onValueChange={(value) => onTeamChange(pendingDraft.id, value)} />
         <p className="my-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Choose Draft Pool</p>
-        <FilterSelect id={`pendingPool-${pendingDraft.id}`} label={`Select a draft pool for ${pendingDraft.fileName}`} value={pendingDraft.selectedPoolId} options={poolOptions} onChange={(event) => onPoolChange(pendingDraft.id, event.target.value)} />
+        <FilterSelect id={`pendingPool-${pendingDraft.id}`} label={`Select a draft pool for ${pendingDraft.fileName}`} value={pendingDraft.selectedPoolId} options={poolOptions} onValueChange={(value) => onPoolChange(pendingDraft.id, value)} />
         <div className="mt-6 flex flex-wrap gap-3">
           <button type="button" onClick={() => onSave(pendingDraft.id)} aria-disabled={cannotBeSaved} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${cannotBeSaved ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
             Save this draft

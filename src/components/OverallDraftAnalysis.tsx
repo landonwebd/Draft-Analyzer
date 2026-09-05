@@ -112,8 +112,8 @@ export default function OverallDraftAnalysis() {
             label="Choose a draft pool to analyze"
             value={selectedDraftPoolId}
             options={draftPoolOptions}
-            onChange={(event) => {
-              const nextDraftPoolId = event.target.value;
+            onValueChange={(value) => {
+              const nextDraftPoolId = value;
               setSelectedDraftPoolId(nextDraftPoolId);
               setSelectedLeagueSize("all");
               window.localStorage.setItem(ANALYSIS_POOL_STORAGE_KEY, nextDraftPoolId);
@@ -128,8 +128,8 @@ export default function OverallDraftAnalysis() {
               label="Choose a league size to analyze"
               value={selectedLeagueSize}
               options={leagueSizeOptions}
-              onChange={(event) => {
-                setSelectedLeagueSize(event.target.value);
+              onValueChange={(value) => {
+                setSelectedLeagueSize(value);
               }}
             />
           </div>

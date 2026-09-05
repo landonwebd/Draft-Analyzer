@@ -303,8 +303,8 @@ export default function Home() {
                   label="Sort drafts"
                   value={draftSortOption}
                   options={draftSortOptions}
-                  onChange={(event) => {
-                    const nextDraftSortOption = event.target.value as DraftSortOption;
+                  onValueChange={(value) => {
+                    const nextDraftSortOption = value as DraftSortOption;
                     setDraftSortOption(nextDraftSortOption);
                     window.localStorage.setItem(DRAFT_SORT_STORAGE_KEY, nextDraftSortOption);
                     setCurrentDraftPage(1);

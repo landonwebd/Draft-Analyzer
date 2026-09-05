@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.3.7",
     "@radix-ui/react-slider": "^1.4.7",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.4",

@@ -189,8 +189,9 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
 
     window.sessionStorage.setItem(DRAFT_TRACKER_STORAGE_KEY, JSON.stringify(sessionToSave));
   }, [draftTrackerState, hasLoadedDraftTrackerSession, isDraftTrackerModeActive]);
-  function handleSelectedPosition(event: React.ChangeEvent<HTMLSelectElement>) {
-    setSelectedPosition(event.target.value as PositionFilter);
+
+  function handleSelectedPosition(value: string) {
+    setSelectedPosition(value as PositionFilter);
   }
 
   function handleSort(nextSortField: RankingSortField) {
@@ -325,8 +326,8 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
     handleDraftTrackerStatusChange(player, nextStatus);
   }
 
-  function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const nextPoolSlug = event.target.value;
+  function handleDraftPoolChange(value: string) {
+    const nextPoolSlug = value;
     const nextUrl = nextPoolSlug === "all" ? "/rankings" : `/rankings?pool=${encodeURIComponent(nextPoolSlug)}`;
     window.localStorage.setItem(RANKINGS_POOL_STORAGE_KEY, nextPoolSlug);
     router.replace(nextUrl, { scroll: false });
@@ -345,8 +346,8 @@ export default function RankingsDisplay({ initialPoolSlug }: RankingsDisplayProp
       <div role="tabpanel" id="rankings-panel" aria-labelledby="rankings-tab" hidden={activeRankingView !== "rankings"}>
         <div className="bg-slate-950 xl:sticky xl:top-0 xl:z-40 xl:py-3">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(6,auto)]">
-            <FilterSelect id="rankingDraftPoolFilter" label="Choose a draft pool" value={activePoolSlug} options={draftPoolOptions} onChange={handleDraftPoolChange} />
-            <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
+            <FilterSelect id="rankingDraftPoolFilter" label="Choose a draft pool" value={activePoolSlug} options={draftPoolOptions} onValueChange={handleDraftPoolChange} />
+            <FilterSelect id="rankingPositionFilter" label="Filter rankings by position" value={selectedPosition} options={positionOptions} onValueChange={handleSelectedPosition} />
             <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg border border-slate-500 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
             <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
               Clear Filters

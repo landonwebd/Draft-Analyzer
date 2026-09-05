@@ -16,6 +16,7 @@ import { usePlayerRankingOverrides } from "@/hooks/usePlayerRankingOverrides";
 import BestAvailableDisplay from "@/components/BestAvailableDisplay";
 import DraftSettingsControl from "@/components/DraftSettingsControl";
 import { useDraftPools } from "@/hooks/useDraftPools";
+import { useRouter } from "next/navigation";
 
 type DraftAnalysisProps = {
   draftId: string;
@@ -28,6 +29,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
   const [activeDraftView, setActiveDraftView] = useState<"results" | "bestAvailable">("results");
   const [selectedBestAvailablePosition, setSelectedBestAvailablePosition] = useState<PositionFilter>("ALL");
   const [bestAvailableSearchTerm, setBestAvailableSearchTerm] = useState("");
+  const router = useRouter();
   const { draftPools, hasLoadedDraftPools } = useDraftPools();
   const { overrides, hasLoadedOverrides } = usePlayerRankingOverrides();
   const { importedDrafts: drafts, hasLoadedImportedDrafts: hasLoaded, assignImportedDraftToPool, renameImportedDraft } = useImportedDrafts();
@@ -41,6 +43,12 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
       label: pool.name,
     })),
   ];
+  const draftOptions = [...drafts]
+    .sort((firstDraft, secondDraft) => firstDraft.name.localeCompare(secondDraft.name))
+    .map((storedDraft) => ({
+      value: storedDraft.id,
+      label: storedDraft.name,
+    }));
   const filtersAreClear = selectedPosition === "ALL" && searchTerm === "" && selectedFantasyTeamFilter === "ALL";
   const bestAvailableFiltersAreClear = selectedBestAvailablePosition === "ALL" && bestAvailableSearchTerm === "";
   const draft = drafts.find((storedDraft) => storedDraft.id === draftId) ?? null;
@@ -52,12 +60,16 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
     const matchesSearch = player.playerName.toLowerCase().includes(bestAvailableSearchTerm.toLowerCase());
     return matchesPosition && matchesSearch;
   });
-  function handleSelectedPosition(event: React.ChangeEvent<HTMLSelectElement>) {
-    setSelectedPosition(event.target.value as PositionFilter);
+  function handleSelectedPosition(value: string) {
+    setSelectedPosition(value as PositionFilter);
   }
 
-  function handleSelectedFantasyTeam(event: React.ChangeEvent<HTMLSelectElement>) {
-    setSelectedFantasyTeamFilter(event.target.value);
+  function handleSelectedFantasyTeam(value: string) {
+    setSelectedFantasyTeamFilter(value);
+  }
+
+  function handleBestAvailablePosition(value: string) {
+    setSelectedBestAvailablePosition(value as PositionFilter);
   }
 
   function handleSearchChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -80,9 +92,13 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
     setBestAvailableSearchTerm("");
   }
 
-  async function handleDraftPoolChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const selectedPoolId = event.target.value === "" ? undefined : event.target.value;
+  async function handleDraftPoolChange(value: string) {
+    const selectedPoolId = value === "" ? undefined : value;
     await assignImportedDraftToPool(draftId, selectedPoolId);
+  }
+
+  function handleDraftChange(nextDraftId: string) {
+    router.push(`/drafts/${encodeURIComponent(nextDraftId)}`);
   }
 
   if (!hasLoaded || !hasLoadedOverrides || !hasLoadedDraftPools) {
@@ -128,9 +144,15 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
         Your fantasy team: <span className="font-bold text-white">{draft.myFantasyTeam}</span>
       </p>
       <p className="mt-1 text-slate-400">{draft.picks.length} total draft picks</p>
-      <div className="mt-4 max-w-sm">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Pool</p>
-        <FilterSelect id={`draftPool-${draft.id}`} label={`Change the draft pool for ${draft.name}`} value={draft.poolId ?? ""} options={draftPoolOptions} onChange={handleDraftPoolChange} />
+      <div className="mt-6 grid max-w-2xl gap-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">League</p>
+          <FilterSelect id="draftSwitcher" label="Switch to another league" value={draft.id} options={draftOptions} onValueChange={handleDraftChange} />
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Pool</p>
+          <FilterSelect id={`draftPool-${draft.id}`} label={`Change the draft pool for ${draft.name}`} value={draft.poolId ?? ""} options={draftPoolOptions} onValueChange={handleDraftPoolChange} />
+        </div>
       </div>
       <div role="tablist" aria-label="Draft analysis views" className="mt-8 flex border-b border-slate-800">
         <button type="button" role="tab" id="draft-results-tab" aria-selected={activeDraftView === "results"} aria-controls="draft-results-panel" onClick={() => setActiveDraftView("results")} className={`cursor-pointer border-b-2 px-5 py-3 font-semibold transition-colors ${activeDraftView === "results" ? "border-sky-400 text-sky-300" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
@@ -142,8 +164,8 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
       </div>
       <div role="tabpanel" id="draft-results-panel" aria-labelledby="draft-results-tab" hidden={activeDraftView !== "results"}>
         <div className="mt-8 grid md:grid-cols-3 xl:grid-cols-4 gap-4">
-          <FilterSelect id="positionFilter" label="Filter by position" value={selectedPosition} options={positionOptions} onChange={handleSelectedPosition} />
-          <FilterSelect id="fantasyTeamFilter" label="Filter by Fantasy Team" value={selectedFantasyTeamFilter} options={fantasyTeamOptions} onChange={handleSelectedFantasyTeam} />
+          <FilterSelect id="positionFilter" label="Filter by position" value={selectedPosition} options={positionOptions} onValueChange={handleSelectedPosition} />
+          <FilterSelect id="fantasyTeamFilter" label="Filter by Fantasy Team" value={selectedFantasyTeamFilter} options={fantasyTeamOptions} onValueChange={handleSelectedFantasyTeam} />
           <input type="search" autoComplete="off" value={searchTerm} onChange={handleSearchChange} placeholder="Search players..." className="w-full rounded-lg bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
           <button type="button" onClick={handleClearFilter} aria-disabled={filtersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${filtersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
             Clear Filters
@@ -159,7 +181,7 @@ export default function DraftAnalysis({ draftId }: DraftAnalysisProps) {
       </div>
       <div role="tabpanel" id="best-available-panel" aria-labelledby="best-available-tab" hidden={activeDraftView !== "bestAvailable"}>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <FilterSelect id="bestAvailablePosition" label="Filter by position" value={selectedBestAvailablePosition} options={positionOptions} onChange={(event) => setSelectedBestAvailablePosition(event.target.value as PositionFilter)} />
+          <FilterSelect id="bestAvailablePosition" label="Filter by position" value={selectedBestAvailablePosition} options={positionOptions} onValueChange={handleBestAvailablePosition} />
           <input type="search" autoComplete="off" value={bestAvailableSearchTerm} onChange={(event) => setBestAvailableSearchTerm(event.target.value)} placeholder="Search available players..." className="w-full rounded-lg bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500" />
           <button type="button" onClick={handleBestAvailableClearFilter} aria-disabled={bestAvailableFiltersAreClear} className={`rounded-lg border border-slate-700 px-4 py-3 text-slate-300 ${bestAvailableFiltersAreClear ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-slate-800"}`}>
             Clear Filters
